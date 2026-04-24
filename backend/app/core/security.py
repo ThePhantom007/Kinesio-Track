@@ -1,6 +1,4 @@
 """
-app/core/security.py
-
 JWT creation/decoding and password hashing.
 All auth logic that isn't HTTP-specific lives here — routes and middleware
 call these helpers rather than touching jose/passlib directly.

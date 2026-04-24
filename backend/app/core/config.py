@@ -1,6 +1,4 @@
 """
-app/core/config.py
-
 Pydantic BaseSettings — single source of truth for all environment variables.
 Validated at startup; any missing required var raises a clear error before the
 server accepts traffic.

@@ -1,6 +1,4 @@
 """
-app/core/exceptions.py
-
 Custom exception hierarchy for Kinesio-Track.
 
 Design rules:
