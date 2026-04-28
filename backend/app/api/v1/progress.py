@@ -27,7 +27,6 @@ from app.db.queries.progress import (
     progress_summary,
     quality_score_series,
     rom_series_all_joints,
-    session_frequency,
 )
 from app.db.queries.analytics import monthly_token_spend
 from app.models.patient import PatientProfile
@@ -36,7 +35,6 @@ from app.models.user import UserRole
 from app.schemas.progress import (
     JointROMSeries,
     ProgressMilestone,
-    ProgressQueryParams,
     ProgressResponse,
     QualityDataPoint,
     RecoveryForecast,

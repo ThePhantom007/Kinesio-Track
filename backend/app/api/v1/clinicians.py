@@ -21,9 +21,8 @@ from app.api.deps import CurrentUser, DBSession, get_current_clinician
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.models.clinician import ClinicianPatient, ClinicianProfile
 from app.models.patient import PatientProfile
-from app.models.red_flag import RedFlagEvent, RedFlagSeverity
+from app.models.red_flag import RedFlagEvent
 from app.models.user import User
-from app.schemas.base import AppResponseModel
 
 router = APIRouter(prefix="/clinicians", tags=["clinicians"])
 

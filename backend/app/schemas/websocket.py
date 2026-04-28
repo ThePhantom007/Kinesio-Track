@@ -30,13 +30,9 @@ Design notes
 """
 
 from __future__ import annotations
-
-from datetime import datetime
 from typing import Annotated, Any, Literal, Union
 from uuid import UUID
-
 from pydantic import Field
-
 from app.schemas.base import AppBaseModel, AppResponseModel
 
 

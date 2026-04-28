@@ -49,13 +49,12 @@ from app.api.deps import (
     get_session_manager,
 )
 from app.core.config import settings
-from app.core.exceptions import AuthenticationError, SessionNotFoundError
+from app.core.exceptions import AuthenticationError
 from app.core.logging import get_logger
 from app.core.security import decode_access_token
 from app.db.postgres import get_db_context
 from app.schemas.websocket import (
     ErrorMessage,
-    ExerciseDoneMessage,
     FeedbackMessage,
     MilestoneMessage,
     OverlayPoint,
@@ -292,7 +291,7 @@ async def session_websocket(
                             deviation_degrees=worst.deviation_degrees,
                             form_score=analysis.form_score,
                             overlay_points=[
-                                OverlayPoint(landmark_id=lid, x=0, y=0, highlight=True)
+                                OverlayPoint(landmark_id=lid, x=0, y=0, highlight=True, colour="#FF4444")
                                 for lid in worst.overlay_landmark_ids
                             ],
                             from_cache=from_cache,
@@ -395,7 +394,7 @@ async def _extract_landmarks_from_frame(raw_b64: str) -> list[dict]:
 
     async def _run():
         try:
-            from app.mediapipe.pose_estimator import PoseEstimator
+            from mediapipe.pose_estimator import PoseEstimator
             img_bytes = base64.b64decode(raw_b64)
             img_array = np.frombuffer(img_bytes, dtype=np.uint8)
             import cv2

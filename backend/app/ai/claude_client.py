@@ -64,7 +64,6 @@ from app.core.exceptions import (
     PlanAdaptationError,
     PlanGenerationError,
     PlanValidationError,
-    RedFlagError,
 )
 from app.core.logging import get_logger
 from app.models.token_usage import AICallType
@@ -183,7 +182,7 @@ class ClaudeClient:
         Produce an RFC 6902 JSON Patch array for post-session plan adaptation.
 
         Returns:
-            List of patch operations (may be empty if no adaptation needed).
+            List of patch operations (maybe empty if no adaptation needed).
 
         Raises:
             PlanAdaptationError: All retry attempts exhausted.

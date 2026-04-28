@@ -9,18 +9,16 @@ Authentication endpoints:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser, DBSession, RedisClient, get_current_user
+from app.api.deps import CurrentUser, DBSession, RedisClient
 from app.core.exceptions import AuthenticationError, ConflictError, TokenExpiredError
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
     hash_password,
-    revocation_key,
     verify_password,
 )
 from app.db.redis import is_token_revoked, revoke_token
@@ -209,7 +207,6 @@ async def logout(
     Revoke the current access token (by JTI from request.state.user)
     and the supplied refresh token.
     """
-    from fastapi import Request
 
     # Revoke refresh token
     try:

@@ -75,7 +75,7 @@ class ConnectionManager:
             self._patient_connections[sid] = websocket
             # Subscribe to Redis channel so other workers can broadcast to us
             task = asyncio.create_task(
-                self._redis_listener(sid, websocket),
+                self._redis_listener(sid),
                 name=f"ws_listener_{sid}",
             )
             self._listener_tasks[sid] = task
@@ -159,7 +159,7 @@ class ConnectionManager:
 
     # ── Redis listener ─────────────────────────────────────────────────────────
 
-    async def _redis_listener(self, sid: str, websocket: WebSocket) -> None:
+    async def _redis_listener(self, sid: str) -> None:
         """
         Background task that subscribes to Redis channel "ws:session:{sid}"
         and forwards published messages to monitor connections on this worker.

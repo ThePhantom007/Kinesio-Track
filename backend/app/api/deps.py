@@ -27,6 +27,7 @@ from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
 from app.db.postgres import get_db
 from app.db.redis import get_redis
+from app.models import PatientProfile
 from app.models.user import User, UserRole
 
 log = get_logger(__name__)
@@ -103,7 +104,6 @@ async def get_current_user(
     user = await db.get(User, UUID(user_id))
     if user is None or not user.is_active:
         raise NotFoundError("User account not found or deactivated.")
-
     return user
 
 
@@ -174,7 +174,7 @@ async def get_patient_profile(
     return profile
 
 
-CurrentPatient = Annotated[object, Depends(get_patient_profile)]
+CurrentPatient = Annotated[PatientProfile, Depends(get_patient_profile)]
 
 
 # ── Pagination ────────────────────────────────────────────────────────────────

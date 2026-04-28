@@ -26,7 +26,6 @@ from app.api.deps import (
     DBSession,
     get_exercise_planner,
     get_patient_profile,
-    get_video_intake_analyzer,
 )
 from app.core.exceptions import NotFoundError
 from app.db.s3 import object_exists

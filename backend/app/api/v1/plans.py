@@ -17,17 +17,15 @@ from app.api.deps import (
     CurrentUser,
     DBSession,
     get_current_clinician,
-    get_patient_profile,
 )
 from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.models.exercise import Exercise
 from app.models.patient import PatientProfile
 from app.models.phase import PlanPhase
-from app.models.plan import ExercisePlan, PlanStatus
+from app.models.plan import ExercisePlan
 from app.models.user import UserRole
 from app.schemas.plan import (
     ExercisePlanResponse,
-    ExercisePlanSummary,
     ExerciseResponse,
     PlanPatchRequest,
     PlanPhaseResponse,

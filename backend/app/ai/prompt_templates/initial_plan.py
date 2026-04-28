@@ -3,7 +3,7 @@ System prompt and user prompt builder for initial exercise plan generation.
 
 Claude is asked to return a single JSON object matching ExercisePlanAIOutput
 (defined in app/schemas/plan.py).  The system prompt enforces JSON-only output
-so response_parser can parse it directly without stripping markdown fences.
+so response_parser can parse it directly without stripping mark down fences.
 
 Token budget: up to ANTHROPIC_PLAN_MAX_TOKENS (4096 by default).
 """

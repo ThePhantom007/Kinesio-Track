@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.ai.prompt_templates.base import dedent, inject_patient_context
+from app.ai.prompt_templates.base import dedent
 
 
 # ── System prompt ─────────────────────────────────────────────────────────────
