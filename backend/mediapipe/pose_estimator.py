@@ -34,10 +34,33 @@ Complexity: Controlled by MEDIAPIPE_MODEL_COMPLEXITY in settings (0/1/2).
 from __future__ import annotations
 
 import os
+import sys
 
 import cv2
-import mediapipe as mp
 import numpy as np
+
+# ── PyPI mediapipe import — bypass our local mediapipe/ package ───────────────
+#
+# Remove the project root from sys.path so Python resolves 'import mediapipe'
+# to the site-packages installation, not this directory.
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+_removed = False
+if _PROJECT_ROOT in sys.path:
+    sys.path.remove(_PROJECT_ROOT)
+    _removed = True
+
+try:
+    import mediapipe as _mp_lib          # PyPI mediapipe
+finally:
+    if _removed and _PROJECT_ROOT not in sys.path:
+        sys.path.insert(0, _PROJECT_ROOT)   # always restore
+
+# Aliases so the rest of this file reads cleanly
+_mp_solutions = _mp_lib.solutions
+
+# ── App imports (safe now that sys.path is restored) ──────────────────────────
 
 from app.core.config import settings
 from app.core.exceptions import PoseAnalysisError
@@ -45,34 +68,25 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 
-# ── Model path ────────────────────────────────────────────────────────────────
 
-_MODEL_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "models",
-    "pose_landmarker.task",
-)
-
-
-# ── Estimator class ───────────────────────────────────────────────────────────
+# ── Estimator ─────────────────────────────────────────────────────────────────
 
 class PoseEstimator:
     """
-    Wraps MediaPipe Pose for per-frame landmark extraction.
+    Wraps ``mediapipe.solutions.pose.Pose`` for per-frame landmark extraction.
+
+    Thread safety: MediaPipe Pose is not thread-safe across threads.
+    Create one instance per thread / per Celery worker process.
 
     Usage::
 
         estimator = PoseEstimator()
-        landmarks = estimator.estimate(frame_bgr)   # numpy BGR array
-        # or
-        landmarks = estimator.estimate_from_bytes(jpeg_bytes)
-
-    Thread safety: MediaPipe Pose is not thread-safe when called across
-    threads.  Create one instance per thread / per Celery worker process.
+        landmarks = estimator.estimate(frame_bgr)          # numpy BGR array
+        landmarks = estimator.estimate_from_bytes(jpeg_bytes)  # raw JPEG bytes
     """
 
     def __init__(self) -> None:
-        self._pose = mp.solutions.pose.Pose(
+        self._pose = _mp_solutions.pose.Pose(
             static_image_mode=False,
             model_complexity=settings.MEDIAPIPE_MODEL_COMPLEXITY,
             smooth_landmarks=True,
@@ -85,7 +99,7 @@ class PoseEstimator:
             model_complexity=settings.MEDIAPIPE_MODEL_COMPLEXITY,
         )
 
-    def estimate(self, frame_bgr: np.ndarray) -> list[dict[str, float]]:
+    def estimate(self, frame_bgr: np.ndarray) -> list[dict]:
         """
         Extract 33 pose landmarks from a single BGR frame.
 
@@ -94,14 +108,14 @@ class PoseEstimator:
 
         Returns:
             List of 33 landmark dicts:
-                [{id, x, y, z, visibility}, ...]
+                [{"id": int, "x": float, "y": float, "z": float, "visibility": float}, ...]
             Returns an empty list if no pose is detected.
 
         Raises:
             PoseAnalysisError: MediaPipe raised an unexpected exception.
         """
         try:
-            rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+            rgb    = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
             result = self._pose.process(rgb)
         except Exception as exc:
             raise PoseAnalysisError(
@@ -122,18 +136,18 @@ class PoseEstimator:
             for i, lm in enumerate(result.pose_landmarks.landmark)
         ]
 
-    def estimate_from_bytes(self, jpeg_bytes: bytes) -> list[dict[str, float]]:
+    def estimate_from_bytes(self, jpeg_bytes: bytes) -> list[dict]:
         """
         Decode a JPEG byte string and extract landmarks.
 
         Args:
-            jpeg_bytes: Raw JPEG bytes (e.g. from base64 decoding a web frame).
+            jpeg_bytes: Raw JPEG bytes (e.g. base64-decoded web frame).
 
         Returns:
-            List of 33 landmark dicts, or empty list if decode or detection fails.
+            List of 33 landmark dicts, or empty list on decode/detection failure.
         """
         try:
-            arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
+            arr   = np.frombuffer(jpeg_bytes, dtype=np.uint8)
             frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         except Exception as exc:
             log.warning("frame_decode_failed", error=str(exc))
@@ -158,18 +172,16 @@ class PoseEstimator:
 
 
 # ── Process-level singleton ───────────────────────────────────────────────────
-# Created lazily so import doesn't trigger model loading at module import time.
 
 _estimator: PoseEstimator | None = None
 
 
 def get_estimator() -> PoseEstimator:
     """
-    Return the process-level PoseEstimator singleton.
-    Initialises on first call.
+    Return the process-level PoseEstimator singleton, creating it on first call.
 
-    Used by the Celery video_processor to avoid re-loading the model for
-    every video.
+    Used by the Celery video_processor to avoid reloading the model for
+    every video file.  Each Celery worker process gets its own singleton.
     """
     global _estimator
     if _estimator is None:

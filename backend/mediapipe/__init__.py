@@ -14,14 +14,14 @@ package first due to sys.path ordering.  If this causes import conflicts
 in tests, add the project root to PYTHONPATH before the site-packages path.
 """
 
-from app.mediapipe.joint_angles import (  # noqa: F401
+from mediapipe.joint_angles import (  # noqa: F401
     bilateral_asymmetry,
     compute_all_joint_angles,
     compute_angle,
     compute_angle_3d,
 )
-from app.mediapipe.pose_estimator import PoseEstimator, get_estimator  # noqa: F401
-from app.mediapipe.video_processor import (  # noqa: F401
+from mediapipe.pose_estimator import PoseEstimator, get_estimator  # noqa: F401
+from mediapipe.video_processor import (  # noqa: F401
     extract_peak_rom,
     extract_rom_time_series,
     process_video_file,
