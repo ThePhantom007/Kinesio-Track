@@ -1,0 +1,225 @@
+# Local development stack.
+#
+# Services:
+#   api        — FastAPI + Uvicorn (hot-reload via volume mount)
+#   worker     — Celery general worker (default, session, notifications queues)
+#   worker-vid — Celery video worker  (video queue, lower concurrency)
+#   beat       — Celery Beat scheduler (periodic tasks)
+#   postgres   — PostgreSQL 16 with TimescaleDB extension
+#   redis      — Redis 7 (broker, cache, session state)
+#   minio      — S3-compatible object storage (local S3 replacement)
+#   nginx      — Reverse proxy (routes /ws/* and /api/*)
+#
+# Usage:
+#   make dev            # start all services
+#   docker compose up api worker postgres redis   # start subset
+#   docker compose logs -f api                    # follow API logs
+#   docker compose exec api alembic upgrade head  # run migrations
+
+version: "3.9"
+
+x-app-base: &app-base
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.api
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+asyncpg://kt_user:${DB_PASSWORD:-ktdev}@postgres:5432/kinesiotrack
+    REDIS_URL: redis://redis:6379/0
+    S3_ENDPOINT_URL: http://minio:9000
+    S3_BUCKET_NAME: kinesiotrack-videos
+    AWS_ACCESS_KEY_ID: minioadmin
+    AWS_SECRET_ACCESS_KEY: minioadmin
+    AWS_REGION: us-east-1
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - kinesio-net
+  restart: unless-stopped
+
+services:
+
+  # ── API ─────────────────────────────────────────────────────────────────────
+  api:
+    <<: *app-base
+    container_name: kt-api
+    volumes:
+      # Hot-reload: mount source so changes reflect without rebuild
+      - ./app:/app/app
+      - ./mediapipe:/app/mediapipe
+      - ./alembic:/app/alembic
+      - ./scripts:/app/scripts
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app
+               --host 0.0.0.0
+               --port 8000
+               --reload
+               --reload-dir app"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Celery general worker ────────────────────────────────────────────────────
+  worker:
+    <<: *app-base
+    container_name: kt-worker
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    volumes:
+      - ./app:/app/app
+      - ./mediapipe:/app/mediapipe
+      - ./scripts:/app/scripts
+    command: >
+      celery -A app.workers worker
+        --loglevel=info
+        -Q default,session,notifications
+        --concurrency 4
+        --max-tasks-per-child 100
+
+  # ── Celery video worker ──────────────────────────────────────────────────────
+  worker-vid:
+    <<: *app-base
+    container_name: kt-worker-video
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    volumes:
+      - ./app:/app/app
+      - ./mediapipe:/app/mediapipe
+      - ./scripts:/app/scripts
+    command: >
+      celery -A app.workers worker
+        --loglevel=info
+        -Q video
+        --concurrency 2
+        --max-tasks-per-child 10
+
+  # ── Celery Beat ───────────────────────────────────────────────────────────────
+  beat:
+    <<: *app-base
+    container_name: kt-beat
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    volumes:
+      - ./app:/app/app
+    command: >
+      celery -A app.workers beat
+        --loglevel=info
+        --scheduler celery.beat:PersistentScheduler
+        --schedule /tmp/celerybeat-schedule
+
+  # ── PostgreSQL + TimescaleDB ─────────────────────────────────────────────────
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: kt-postgres
+    environment:
+      POSTGRES_DB: kinesiotrack
+      POSTGRES_USER: kt_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ktdev}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - kinesio-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kt_user -d kinesiotrack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: kt-redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - kinesio-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── MinIO (local S3) ──────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: kt-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console (web UI)
+    networks:
+      - kinesio-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── MinIO bucket initialiser (runs once, then exits) ─────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: kt-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - kinesio-net
+    entrypoint: >
+      sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/kinesiotrack-videos &&
+        mc anonymous set private local/kinesiotrack-videos &&
+        echo 'MinIO bucket ready.'
+      "
+    restart: "no"
+
+  # ── Nginx reverse proxy ───────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: kt-nginx
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - kinesio-net
+    restart: unless-stopped
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+
+# ── Network ───────────────────────────────────────────────────────────────────
+networks:
+  kinesio-net:
+    driver: bridge
