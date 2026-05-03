@@ -1,0 +1,101 @@
+# Multi-stage build for the FastAPI API server.
+#
+# Stage 1 (builder): installs all Python dependencies into a venv
+#                    so the runtime image stays small and clean.
+# Stage 2 (runtime): copies only the venv + app code, downloads the
+#                    MediaPipe model, sets a non-root user, and starts
+#                    Uvicorn with 4 workers.
+#
+# Usage:
+#   docker build -f docker/Dockerfile.api -t kinesio-track-api .
+#   docker run --env-file .env -p 8000:8000 kinesio-track-api
+
+# ── Stage 1: dependency builder ───────────────────────────────────────────────
+
+FROM python:3.12-slim AS builder
+
+# System packages needed to build Python extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libgl1 \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy only dependency files first so Docker cache invalidates only when
+# they change, not on every source code edit.
+COPY requirements.txt .
+
+# Install into an isolated venv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+
+# ── Stage 2: runtime ──────────────────────────────────────────────────────────
+
+FROM python:3.12-slim AS runtime
+
+LABEL maintainer="Kinesio-Track Team"
+LABEL description="FastAPI API server — Kinesio-Track remote physiotherapy platform"
+
+# Runtime system dependencies
+# libgl1 + libglib2.0-0 are required by OpenCV / MediaPipe
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+        libgl1 \
+        libglib2.0-0 \
+        curl \
+        wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the venv from builder — avoids re-installing in runtime stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Non-root user for security
+RUN groupadd --gid 1001 kinesio \
+ && useradd  --uid 1001 --gid kinesio --shell /bin/bash --create-home kinesio
+
+WORKDIR /app
+
+# Copy application source
+COPY --chown=kinesio:kinesio app/           ./app/
+COPY --chown=kinesio:kinesio mediapipe/     ./mediapipe/
+COPY --chown=kinesio:kinesio alembic/       ./alembic/
+COPY --chown=kinesio:kinesio alembic.ini    ./alembic.ini
+COPY --chown=kinesio:kinesio scripts/       ./scripts/
+
+# Create the models directory (populated by download_models.sh below)
+RUN mkdir -p mediapipe/models \
+ && chown -R kinesio:kinesio mediapipe/models
+
+# Download MediaPipe model weights at build time.
+# The script is idempotent — safe to re-run.
+RUN bash scripts/download_models.sh full
+
+# Switch to non-root before the entrypoint
+USER kinesio
+
+# Expose the Uvicorn port
+EXPOSE 8000
+
+# Health check for container orchestrators
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Validate environment before starting (exits 1 if a required var is missing)
+# Then run Alembic migrations and start Uvicorn.
+ENTRYPOINT ["sh", "-c", \
+    "python scripts/check_env.py --no-ping && \
+     alembic upgrade head && \
+     uvicorn app.main:app \
+       --host 0.0.0.0 \
+       --port 8000 \
+       --workers 4 \
+       --loop uvloop \
+       --access-log"]

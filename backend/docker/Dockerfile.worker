@@ -1,0 +1,83 @@
+# Celery worker image.
+#
+# Shares the same base image and venv as Dockerfile.api so dependency
+# versions are always in sync.  The only difference is the CMD — this
+# image starts a Celery worker instead of Uvicorn.
+#
+# Two worker types run from this image (configured by the CMD override
+# in docker-compose.yml):
+#
+#   API/session/notifications worker — fast tasks, high concurrency
+#     celery -A app.workers worker -Q default,session,notifications
+#
+#   Video worker — CPU-intensive, lower concurrency
+#     celery -A app.workers worker -Q video --concurrency 2
+#
+# Usage:
+#   docker build -f docker/Dockerfile.worker -t kinesio-track-worker .
+#   docker run --env-file .env kinesio-track-worker
+
+# ── Stage 1: dependency builder ───────────────────────────────────────────────
+
+FROM python:3.12-slim AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libgl1 \
+        libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY requirements.txt .
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir -r requirements.txt
+
+
+# ── Stage 2: runtime ──────────────────────────────────────────────────────────
+
+FROM python:3.12-slim AS runtime
+
+LABEL maintainer="Kinesio-Track Team"
+LABEL description="Celery worker — Kinesio-Track remote physiotherapy platform"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+        libgl1 \
+        libglib2.0-0 \
+        wget \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Non-root user
+RUN groupadd --gid 1001 kinesio \
+ && useradd  --uid 1001 --gid kinesio --shell /bin/bash --create-home kinesio
+
+WORKDIR /app
+
+COPY --chown=kinesio:kinesio app/       ./app/
+COPY --chown=kinesio:kinesio mediapipe/ ./mediapipe/
+COPY --chown=kinesio:kinesio scripts/   ./scripts/
+
+# MediaPipe model — workers need it for server-side pose estimation
+RUN mkdir -p mediapipe/models \
+ && chown -R kinesio:kinesio mediapipe/models
+RUN bash scripts/download_models.sh full
+
+USER kinesio
+
+# Default: run the general worker (video worker overrides -Q in compose)
+CMD ["celery", \
+     "-A", "app.workers", \
+     "worker", \
+     "--loglevel=info", \
+     "-Q", "default,session,notifications", \
+     "--concurrency", "4", \
+     "--max-tasks-per-child", "100"]
