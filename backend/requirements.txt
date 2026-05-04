@@ -1,0 +1,58 @@
+# Production dependencies — pinned to minor versions for reproducibility.
+# Run: pip install -r requirements.txt
+# Dev extras: pip install -r requirements-dev.txt
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]                # includes uvloop + httptools for performance
+python-multipart                 # required by FastAPI for form/file uploads
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy[asyncio]
+asyncpg                          # async PostgreSQL driver (used by SQLAlchemy + raw)
+alembic
+psycopg2-binary                  # Alembic env.py sync driver (migrations only)
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+redis                            # includes redis.asyncio
+
+# ── AI / Anthropic ────────────────────────────────────────────────────────────
+anthropic
+
+# ── Task queue ────────────────────────────────────────────────────────────────
+celery
+kombu                            # Celery transport layer
+
+# ── S3 / AWS ──────────────────────────────────────────────────────────────────
+boto3
+botocore
+
+# ── MediaPipe + Computer Vision ───────────────────────────────────────────────
+mediapipe
+opencv-python-headless           # headless — no GUI, safe in Docker
+numpy                            # pinned — mediapipe requires < 2.0
+
+# ── Data / Analytics ─────────────────────────────────────────────────────────
+scipy                            # linear regression for recovery forecaster
+jsonpatch                        # RFC 6902 JSON Patch for plan adaptation
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+python-jose[cryptography]        # JWT encode/decode
+passlib[bcrypt]                  # password hashing
+
+# ── Validation / Settings ─────────────────────────────────────────────────────
+pydantic
+pydantic-settings
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+structlog
+
+# ── HTTP client (used by Anthropic SDK internally) ────────────────────────────
+httpx
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+aiohttp                          # FCM push + clinician webhooks
+aiosmtplib                       # async SMTP email
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv                    # load .env in scripts/check_env.py
