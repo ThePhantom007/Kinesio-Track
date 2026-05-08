@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
 from passlib.context import CryptContext
 
 from app.core.config import settings
@@ -102,7 +102,7 @@ def decode_token(token: str) -> dict[str, Any]:
             algorithms=[settings.JWT_ALGORITHM],
         )
         return payload
-    except jwt.ExpiredSignatureError as exc:
+    except ExpiredSignatureError as exc:
         raise TokenExpiredError("Access token has expired") from exc
     except JWTError as exc:
         raise AuthenticationError(f"Invalid token: {exc}") from exc

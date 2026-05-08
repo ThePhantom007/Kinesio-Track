@@ -279,6 +279,8 @@ async def session_websocket(
                                 session_id=session_id,
                             )
 
+                        lm_map = {lm["id"]: lm for lm in landmarks}
+
                         feedback_msg = FeedbackMessage(
                             session_id=session_id,
                             timestamp_ms=timestamp_ms,
@@ -292,7 +294,12 @@ async def session_websocket(
                             deviation_degrees=worst.deviation_degrees,
                             form_score=analysis.form_score,
                             overlay_points=[
-                                OverlayPoint(landmark_id=lid, x=0, y=0, highlight=True, colour="#FF4444")
+                                OverlayPoint(landmark_id=lid,
+                                             x=lm_map[lid]["x"] if lid in lm_map else 0.0,
+                                             y=lm_map[lid]["y"] if lid in lm_map else 0.0,
+                                             highlight=True,
+                                             colour="#FF4444" if worst.severity == "error" else "#FFAA00"
+                                )
                                 for lid in worst.overlay_landmark_ids
                             ],
                             from_cache=from_cache,

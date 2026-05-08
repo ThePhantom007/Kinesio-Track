@@ -128,12 +128,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
     async with _session_factory() as session:
         async with session.begin():
-            try:
-                yield session
-            except Exception:
-                await session.rollback()
-                raise
-
+            yield session
 
 # ── Engine accessor (for raw asyncpg access in timescale.py) ──────────────────
 

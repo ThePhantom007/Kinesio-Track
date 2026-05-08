@@ -400,6 +400,7 @@ class SessionManagerService:
 
         db.add_all(events)
         await db.flush()
+        await self._redis.delete(_feedback_key(session_id))
         log.info("feedback_buffer_flushed", session_id=str(session_id), count=len(events))
 
     async def _cleanup_redis(self, session_id: UUID) -> None:
@@ -407,7 +408,6 @@ class SessionManagerService:
         keys = [
             _state_key(session_id),
             _rules_key(session_id),
-            _feedback_key(session_id),
             _frame_count_key(session_id),
             _rep_count_key(session_id),
         ]
