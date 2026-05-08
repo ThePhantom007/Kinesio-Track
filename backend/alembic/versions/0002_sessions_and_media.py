@@ -41,6 +41,7 @@ def upgrade() -> None:
         sa.Column("avg_quality_score",   sa.Float(), nullable=True),
         sa.Column("completion_pct",      sa.Float(), nullable=True),
         sa.Column("post_session_pain",   sa.Integer(), nullable=True),
+        sa.CheckConstraint("post_session_pain BETWEEN 1 AND 10", name="post_session_pain"),
         sa.Column("total_reps_completed",sa.Integer(), nullable=True),
         sa.Column("total_sets_completed",sa.Integer(), nullable=True),
         sa.Column("peak_rom_degrees",    sa.Float(), nullable=True),

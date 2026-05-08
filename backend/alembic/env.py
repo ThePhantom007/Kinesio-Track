@@ -22,7 +22,7 @@ Running migrations
   # Show current revision
   alembic current
 
-  # Roll back one step
+  # Roll back one-step
   alembic downgrade -1
 """
 

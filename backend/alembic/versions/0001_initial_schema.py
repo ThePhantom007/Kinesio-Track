@@ -112,6 +112,7 @@ def upgrade() -> None:
         sa.Column("description",         sa.Text(), nullable=False),
         sa.Column("body_part",           sa.Enum("ankle","knee","hip","lower_back","upper_back","shoulder","elbow","wrist","neck","other", name="body_part"), nullable=False),
         sa.Column("pain_score",          sa.Integer(), nullable=False),
+        sa.CheckConstraint("pain_score BETWEEN 1 AND 10", name="ck_injuries_pain_score_range"),
         sa.Column("status",              sa.Enum("active","resolved","on_hold", name="injury_status"), nullable=False, server_default="active"),
         sa.Column("intake_video_s3_key", sa.String(1024), nullable=True),
         sa.Column("mobility_notes",      sa.Text(), nullable=True),

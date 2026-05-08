@@ -1,8 +1,5 @@
-"""Add red_flag_events and token_usage tables
-
-Revision ID: 0005
-Revises: 0004
-Create Date: 2026-01-01 00:04:00.000000
+"""
+Add red_flag_events and token_usage tables
 """
 
 from __future__ import annotations
@@ -61,7 +58,7 @@ def upgrade() -> None:
         sa.Column("id",               sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column("call_type",        sa.Enum("initial_plan","adapt_plan","red_flag","feedback", name="ai_call_type"), nullable=False),
         sa.Column("patient_id",       UUID(as_uuid=True), sa.ForeignKey("patient_profiles.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("session_id",       sa.String(36), nullable=True),   # plain text — no FK to avoid locking
+        sa.Column("session_id",       UUID(as_uuid=False), nullable=True),   # plain text — no FK to avoid locking
         sa.Column("model",            sa.String(128), nullable=False),
         sa.Column("input_tokens",     sa.Integer(), nullable=False),
         sa.Column("output_tokens",    sa.Integer(), nullable=False),

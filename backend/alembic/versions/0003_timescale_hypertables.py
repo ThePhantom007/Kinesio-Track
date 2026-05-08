@@ -1,11 +1,5 @@
-"""Convert session_metric to TimescaleDB hypertable and create continuous aggregates
-
-Revision ID: 0003
-Revises: 0002
-Create Date: 2026-01-01 00:02:00.000000
-
-Notes
------
+"""
+Convert session_metric to TimescaleDB hypertable and create continuous aggregates
 This migration:
   1. Creates the session_metric table (raw per-frame data).
   2. Converts it to a TimescaleDB hypertable partitioned by time with
@@ -14,20 +8,13 @@ This migration:
      queries and an index on (joint, time DESC) for joint-level analytics.
   4. Creates a daily continuous aggregate (daily_rom_avg) so the progress
      dashboard can query pre-aggregated data without scanning raw rows.
-
-Requires the TimescaleDB extension to be enabled.  The extension is enabled
-in db/postgres.py at startup; this migration also enables it idempotently
-in case the migration runs before the app starts.
-
-If TimescaleDB is not available (e.g. plain Postgres in some test
-environments), the create_hypertable() call will fail.  The migration
-includes a graceful fallback for that case.
 """
 
 from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects.postgresql import UUID
 
 revision = "0003"
 down_revision = "0002"
@@ -45,8 +32,8 @@ def upgrade() -> None:
     op.create_table(
         "session_metric",
         sa.Column("time",          sa.DateTime(timezone=True), nullable=False),
-        sa.Column("session_id",    sa.String(36), nullable=False),   # UUID stored as text for hypertable compat
-        sa.Column("exercise_id",   sa.String(36), nullable=True),
+        sa.Column("session_id",    UUID(as_uuid=False), nullable=False),
+        sa.Column("exercise_id",   UUID(as_uuid=False), nullable=True),
         sa.Column("joint",         sa.String(64), nullable=False),
         sa.Column("angle_deg",     sa.Float(), nullable=False),
         sa.Column("quality_score", sa.Float(), nullable=True),
