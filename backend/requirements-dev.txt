@@ -1,0 +1,24 @@
+# requirements-dev.txt
+# Development and testing dependencies — never installed in production images.
+# Install with: pip install -r requirements.txt -r requirements-dev.txt
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest
+pytest-asyncio
+pytest-cov
+httpx
+respx
+fakeredis[aioredis]
+factory-boy
+
+# ── Linting & formatting ──────────────────────────────────────────────────────
+ruff
+mypy
+
+# ── Type stubs ────────────────────────────────────────────────────────────────
+types-redis
+boto3-stubs[s3]
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv
+moto[s3]
