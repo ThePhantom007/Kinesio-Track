@@ -31,7 +31,6 @@ from typing import Awaitable, Callable
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
 
 from app.core.config import settings
 from app.core.exceptions import AuthenticationError, RateLimitExceededError, TokenExpiredError
@@ -148,7 +147,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
       1. Remove all members with score < (now - window_ms).
       2. Count remaining members.
       3. If count >= limit → reject with 429.
-      4. Otherwise add the new request to the set with ZADD.
+      4. Otherwise, add the new request to the set with ZADD.
       5. Set the key TTL to window_ms so Redis auto-cleans idle keys.
 
     Identifier priority: authenticated user_id > IP address.

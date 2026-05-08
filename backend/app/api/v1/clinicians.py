@@ -66,7 +66,7 @@ async def get_alert_queue(
     limit: int = Query(50, ge=1, le=200),
 ):
     """
-    Return red-flag alerts for all of the clinician's assigned patients,
+    Return red-flag alerts for all the clinician's assigned patients,
     ordered by severity and creation time.
 
     Use ``unacknowledged_only=false`` to view the full history.

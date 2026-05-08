@@ -125,7 +125,7 @@ class ClaudeClient:
         for attempt in range(settings.ANTHROPIC_MAX_RETRIES):
             try:
                 with timer() as t:
-                    raw, usage = await self._call(
+                    raw, usage, model = await self._call(
                         system=INITIAL_PLAN_SYSTEM_PROMPT,
                         user=user_prompt,
                         max_tokens=settings.ANTHROPIC_PLAN_MAX_TOKENS,
@@ -136,7 +136,7 @@ class ClaudeClient:
                 await self._cost_tracker.record(
                     db,
                     call_type=AICallType.INITIAL_PLAN,
-                    model=usage.model,
+                    model=model,
                     input_tokens=usage.input_tokens,
                     output_tokens=usage.output_tokens,
                     patient_id=patient_id,
@@ -193,7 +193,7 @@ class ClaudeClient:
         for attempt in range(settings.ANTHROPIC_MAX_RETRIES):
             try:
                 with timer() as t:
-                    raw, usage = await self._call(
+                    raw, usage, model = await self._call(
                         system=ADAPT_PLAN_SYSTEM_PROMPT,
                         user=user_prompt,
                         max_tokens=512,
@@ -204,7 +204,7 @@ class ClaudeClient:
                 await self._cost_tracker.record(
                     db,
                     call_type=AICallType.ADAPT_PLAN,
-                    model=usage.model,
+                    model=model,
                     input_tokens=usage.input_tokens,
                     output_tokens=usage.output_tokens,
                     patient_id=patient_id,
@@ -257,7 +257,7 @@ class ClaudeClient:
 
         try:
             with timer() as t:
-                raw, usage = await self._call(
+                raw, usage, model = await self._call(
                     system=RED_FLAG_SYSTEM_PROMPT,
                     user=user_prompt,
                     max_tokens=300,
@@ -267,7 +267,7 @@ class ClaudeClient:
             await self._cost_tracker.record(
                 db,
                 call_type=AICallType.RED_FLAG,
-                model=usage.model,
+                model=model,
                 input_tokens=usage.input_tokens,
                 output_tokens=usage.output_tokens,
                 patient_id=patient_id,
@@ -319,7 +319,7 @@ class ClaudeClient:
 
         try:
             with timer() as t:
-                raw, usage = await self._call(
+                raw, usage, model = await self._call(
                     system=FEEDBACK_SYSTEM_PROMPT,
                     user=user_prompt,
                     max_tokens=settings.ANTHROPIC_FEEDBACK_MAX_TOKENS,
@@ -330,7 +330,7 @@ class ClaudeClient:
             await self._cost_tracker.record(
                 db,
                 call_type=AICallType.FEEDBACK,
-                model=usage.model,
+                model=model,
                 input_tokens=usage.input_tokens,
                 output_tokens=usage.output_tokens,
                 session_id=session_id,
@@ -354,13 +354,11 @@ class ClaudeClient:
         system: str,
         user: str,
         max_tokens: int,
-    ) -> tuple[str, anthropic.types.Usage]:
+    ) -> tuple[str, anthropic.types.Usage, anthropic.types.Model]:
         """
         Execute one Anthropic messages.create call.
-
         Returns:
-            (response_text, usage_object) tuple.
-
+            (response_text, usage_object, model_object) tuple.
         Raises:
             anthropic.APIError on any HTTP or SDK-level failure.
         """
@@ -373,7 +371,7 @@ class ClaudeClient:
         text = "".join(
             block.text for block in response.content if block.type == "text"
         )
-        return text, response.usage
+        return text, response.usage, response.model
 
     async def close(self) -> None:
         """Close the underlying HTTP client.  Call during app shutdown."""

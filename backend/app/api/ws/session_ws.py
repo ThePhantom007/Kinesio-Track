@@ -62,6 +62,7 @@ from app.schemas.websocket import (
     RedFlagMessage,
     WSCloseCode,
 )
+from mediapipe import PoseEstimator
 
 router = APIRouter(tags=["websocket"])
 log = get_logger(__name__)
@@ -382,30 +383,26 @@ async def _send(websocket: WebSocket, data: dict) -> None:
     except Exception:
         pass
 
+_web_estimator = PoseEstimator()
 
 async def _extract_landmarks_from_frame(raw_b64: str) -> list[dict]:
     """
-    Server-side MediaPipe landmark extraction for web browser clients.
-    Runs in a thread pool to avoid blocking the event loop.
-    """
-    import asyncio
+        Server-side MediaPipe landmark extraction for web browser clients.
+        Runs in a thread pool to avoid blocking the event loop.
+        """
+    import asyncio, cv2
     import base64
     import numpy as np
-
-    async def _run():
+    loop = asyncio.get_event_loop()
+    def _run():
         try:
-            from mediapipe.pose_estimator import PoseEstimator
             img_bytes = base64.b64decode(raw_b64)
             img_array = np.frombuffer(img_bytes, dtype=np.uint8)
-            import cv2
             frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
             if frame is None:
                 return []
-            estimator = PoseEstimator()
-            return estimator.estimate(frame)
+            return _web_estimator.estimate(frame)
         except Exception as exc:
             log.warning("server_side_mediapipe_failed", error=str(exc))
             return []
-
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: asyncio.run(_run()))
+    return await loop.run_in_executor(None, _run)
