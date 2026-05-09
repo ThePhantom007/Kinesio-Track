@@ -61,6 +61,8 @@ from app.schemas.websocket import (
     PongMessage,
     RedFlagMessage,
     WSCloseCode,
+    ExerciseDoneMessage,
+    SessionSummaryMessage,
 )
 from mediapipe import PoseEstimator
 
@@ -139,19 +141,101 @@ async def session_websocket(
                 if state:
                     sets = int(state.get("sets", 3))
                     reps = int(state.get("reps", 10))
-                    set_num  = ((rep_count - 1) // reps) + 1
+                    total_prescribed = sets * reps
+                    set_num = ((rep_count - 1) // reps) + 1
                     rep_in_set = ((rep_count - 1) % reps) + 1
 
+                    # ── Send rep/set milestone ────────────────────────────────
+                    milestone_type = "set" if rep_in_set == reps else "rep"
                     milestone = MilestoneMessage(
                         session_id=session_id,
                         timestamp_ms=_now_ms(),
-                        milestone_type="rep",
+                        milestone_type=milestone_type,
                         rep_number=rep_in_set,
                         set_number=set_num,
                         exercise_id=UUID(state["exercise_id"]),
-                        message=f"Rep {rep_in_set} of {reps} — keep it up!",
+                        message=(
+                            f"Set {set_num} of {sets} complete — great work!"
+                            if milestone_type == "set"
+                            else f"Rep {rep_in_set} of {reps} — keep it up!"
+                        ),
                     )
                     await connection_manager.send_to_patient(session_id, milestone.model_dump())
+
+                    # ── Check if all reps across all sets are done ────────────
+                    if rep_count >= total_prescribed:
+                        next_exercise = await _get_next_exercise(
+                            session_id=session_id,
+                            current_exercise_id=UUID(state["exercise_id"]),
+                            session_manager=session_manager,
+                        )
+
+                        if next_exercise:
+                            # More exercises in this session
+                            done_msg = ExerciseDoneMessage(
+                                session_id=session_id,
+                                timestamp_ms=_now_ms(),
+                                completed_exercise_id=UUID(state["exercise_id"]),
+                                completed_exercise_name=state.get("exercise_name", ""),
+                                next_exercise_id=next_exercise["id"],
+                                next_exercise_name=next_exercise["name"],
+                                next_exercise_sets=next_exercise["sets"],
+                                next_exercise_reps=next_exercise["reps"],
+                                rest_seconds=next_exercise.get("rest_seconds", 30),
+                                message=(
+                                    f"Exercise complete! Rest for {next_exercise.get('rest_seconds', 30)} "
+                                    f"seconds, then move on to {next_exercise['name']}."
+                                ),
+                            )
+                            await connection_manager.send_to_patient(
+                                session_id, done_msg.model_dump()
+                            )
+
+                            # Update Redis state to the next exercise
+                            await session_manager.transition_to_next_exercise(
+                                session_id=session_id,
+                                next_exercise=next_exercise,
+                            )
+
+                        else:
+                            # All exercises done — end the session
+                            summary_msg = SessionSummaryMessage(
+                                session_id=session_id,
+                                timestamp_ms=_now_ms(),
+                                avg_quality_score=round(
+                                    sum(frame_scores) / len(frame_scores), 1
+                                ) if frame_scores else None,
+                                completion_pct=100.0,
+                                total_reps=rep_count,
+                                total_sets=sets,
+                                duration_seconds=int(
+                                    (_now_ms() - int(state.get("started_ms", _now_ms()))) / 1000
+                                ),
+                                feedback_count=len(frame_scores),
+                                message="Session complete! Great work today. Your progress has been recorded.",
+                                plan_adapted=False,  # Celery task updates this async
+                            )
+                            await connection_manager.send_to_patient(
+                                session_id, summary_msg.model_dump()
+                            )
+
+                            # End the session in DB and enqueue Celery task
+                            async with get_db_context() as db:
+                                await session_manager.end_session(
+                                    db=db,
+                                    session_id=session_id,
+                                    patient_id=UUID(state["patient_id"]),
+                                    post_session_pain=0,  # patient will update via REST PATCH
+                                    completion_pct=100.0,
+                                )
+
+                            from app.workers.session_tasks import post_session_analysis
+                            post_session_analysis.delay(str(session_id))
+
+                            # Close the WebSocket cleanly
+                            await websocket.close(code=1000)
+                            return
+
                 continue
 
             # ── Frame data ────────────────────────────────────────────────────
@@ -389,6 +473,58 @@ async def _send(websocket: WebSocket, data: dict) -> None:
         await websocket.send_text(json.dumps(data))
     except Exception:
         pass
+
+async def _get_next_exercise(
+    session_id: UUID,
+    current_exercise_id: UUID,
+    session_manager,
+) -> dict | None:
+    """
+    Look up the next exercise in the current phase after the completed one.
+    Returns a dict with exercise details, or None if this was the last exercise.
+    """
+    from app.db.postgres import get_db_context
+    from app.models.exercise import Exercise
+    from app.models.phase import PlanPhase
+    from sqlalchemy import select
+
+    state = await session_manager.get_session_state(session_id)
+    if not state:
+        return None
+
+    async with get_db_context() as db:
+        # Find the current exercise's order_index
+        current = await db.get(Exercise, current_exercise_id)
+        if current is None:
+            return None
+
+        # Find the next exercise in the same phase by order_index
+        result = await db.execute(
+            select(Exercise)
+            .join(PlanPhase, PlanPhase.id == Exercise.phase_id)
+            .where(
+                PlanPhase.plan_id == UUID(state["plan_id"]),
+                Exercise.order_index > current.order_index,
+            )
+            .order_by(Exercise.order_index)
+            .limit(1)
+        )
+        next_ex = result.scalar_one_or_none()
+        if next_ex is None:
+            return None
+
+        return {
+            "id":           next_ex.id,
+            "name":         next_ex.name,
+            "slug":         next_ex.slug,
+            "sets":         next_ex.sets,
+            "reps":         next_ex.reps,
+            "hold_seconds": next_ex.hold_seconds,
+            "rest_seconds": next_ex.rest_seconds,
+            "difficulty":   next_ex.difficulty or "beginner",
+            "landmark_rules": next_ex.landmark_rules,
+            "red_flags":    next_ex.red_flags or [],
+        }
 
 _web_estimator = PoseEstimator()
 

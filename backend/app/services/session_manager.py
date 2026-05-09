@@ -24,6 +24,7 @@ sessions from dropped connections are automatically cleaned up.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -227,6 +228,47 @@ class SessionManagerService:
                 SessionStatus.IN_PROGRESS.value,
             )
 
+    async def transition_to_next_exercise(
+            self,
+            session_id: UUID,
+            next_exercise: dict,
+    ) -> None:
+        """
+        Update Redis session state to reflect the next exercise.
+        Resets rep counter and updates landmark rules.
+        Called by the WebSocket handler when an exercise completes.
+        """
+        ttl = settings.REDIS_SESSION_RULES_TTL
+
+        await self._redis.hset(
+            _state_key(session_id),
+            mapping={
+                "exercise_id": str(next_exercise["id"]),
+                "exercise_slug": next_exercise["slug"],
+                "exercise_name": next_exercise["name"],
+                "difficulty": next_exercise.get("difficulty", "beginner"),
+                "sets": str(next_exercise["sets"]),
+                "reps": str(next_exercise["reps"]),
+                "red_flag_rules": json.dumps(next_exercise.get("red_flags", [])),
+            },
+        )
+
+        # Update landmark rules for the new exercise
+        await self._redis.set(
+            _rules_key(session_id),
+            json.dumps(next_exercise["landmark_rules"]),
+            ex=ttl,
+        )
+
+        # Reset rep counter for the new exercise
+        await self._redis.set(_rep_count_key(session_id), 0, ex=ttl)
+
+        log.info(
+            "session_exercise_transitioned",
+            session_id=str(session_id),
+            next_exercise=next_exercise["slug"],
+        )
+
     # ═══════════════════════════════════════════════════════════════════════════
     # Redis helpers (called by WebSocket handler)
     # ═══════════════════════════════════════════════════════════════════════════
@@ -346,6 +388,7 @@ class SessionManagerService:
                 "sets":          str(exercise.sets),
                 "reps":          str(exercise.reps),
                 "red_flag_rules": json.dumps(exercise.red_flags or []),
+                "started_ms": str(int(time.time() * 1000)),
             },
         )
         await self._redis.expire(_state_key(sid), ttl)

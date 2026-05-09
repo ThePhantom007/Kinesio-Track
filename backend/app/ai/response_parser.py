@@ -32,7 +32,7 @@ log = get_logger(__name__)
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 # ── JSON Patch op schema (lightweight, no external dep) ───────────────────────
-_VALID_OPS = {"add", "replace", "move", "copy", "test"}
+_VALID_OPS = {"add", "replace", "move", "copy", "test", "remove"}
 _REQUIRED_PATCH_KEYS = {"op", "path"}
 
 

@@ -14,11 +14,7 @@ already triggered a plan adaptation (plan_adapted=True) to avoid churn.
 
 from __future__ import annotations
 
-import copy
 from typing import Any
-from uuid import UUID
-
-import jsonpatch
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

@@ -19,13 +19,16 @@ from uuid import UUID
 from celery import Task
 from celery.utils.log import get_task_logger
 
+from app.models import FeedbackEvent
 from app.workers.celery_app import celery_app
+from app.ai.claude_client import ClaudeClient
+_claude = ClaudeClient()
 
 log = get_task_logger(__name__)
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 @celery_app.task(
@@ -55,11 +58,10 @@ def post_session_analysis(self: Task, session_id: str) -> dict:
     log.info("post_session_analysis_started", session_id=session_id)
 
     async def _run_async():
-        from sqlalchemy import select, func
+        from sqlalchemy import select
 
         from app.db.postgres import get_db_context
-        from app.db.timescale import get_quality_trend
-        from app.db.queries.analytics import last_n_session_metrics, pain_trend
+        from app.db.queries.analytics import pain_trend
         from app.models.exercise import Exercise
         from app.models.injury import Injury
         from app.models.patient import PatientProfile
@@ -69,7 +71,6 @@ def post_session_analysis(self: Task, session_id: str) -> dict:
         from app.services.red_flag_monitor import RedFlagMonitorService
         from app.services.session_scorer import SessionScorerService
         from app.services.notification import NotificationService
-        from app.ai.claude_client import ClaudeClient
 
         async with get_db_context() as db:
             session = await db.get(ExerciseSession, UUID(session_id))
@@ -104,9 +105,14 @@ def post_session_analysis(self: Task, session_id: str) -> dict:
                 granularity="session",
             ) if session.plan_id else []
 
-            # Build simple frame score/angle lists from session metrics
-            # (In production these come from the Redis buffer flushed on session end)
-            frame_scores = [float(session.avg_quality_score or 50.0)]
+            result = await db.execute(
+                select(FeedbackEvent.form_score_at_event)
+                .where(FeedbackEvent.session_id == session.id)
+                .where(FeedbackEvent.form_score_at_event.isnot(None))
+            )
+            frame_scores = [row[0] for row in result.all()]
+            if not frame_scores:
+                frame_scores = [float(session.avg_quality_score or 50.0)]
             frame_angles = []
             target_joints = exercise.target_joints if exercise else []
 
@@ -128,7 +134,7 @@ def post_session_analysis(self: Task, session_id: str) -> dict:
                 pain_data = await pain_trend(session.patient_id, session.plan_id, n=5)
                 prev_avg  = float(pain_data.get("avg_pain") or 0)
 
-                rf_monitor = RedFlagMonitorService(ClaudeClient())
+                rf_monitor = RedFlagMonitorService(_claude)
                 rf_event = await rf_monitor.check_pain_spike(
                     db=db,
                     session=session,
@@ -147,7 +153,7 @@ def post_session_analysis(self: Task, session_id: str) -> dict:
             # ── Step 5: Plan adaptation ────────────────────────────────────────
             plan_adapted = False
             if plan and patient:
-                adapter = PlanAdapterService(ClaudeClient())
+                adapter = PlanAdapterService(_claude)
                 plan_adapted = await adapter.adapt_after_session(db=db, session=session)
 
             # ── Step 6: Session summary text ──────────────────────────────────
