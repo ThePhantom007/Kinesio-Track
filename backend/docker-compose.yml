@@ -16,6 +16,8 @@
 #   docker compose logs -f api                    # follow API logs
 #   docker compose exec api alembic upgrade head  # run migrations
 
+name: kinesio-track
+
 x-app-base: &app-base
   build:
     context: .

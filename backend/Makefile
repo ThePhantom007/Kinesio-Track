@@ -115,22 +115,22 @@ check: lint typecheck
 # ── Database migrations ───────────────────────────────────────────────────────
 
 migrate: _test-deps-up
-	docker compose exec api alembic upgrade head
+	alembic upgrade head
 
 migrate-new: _test-deps-up
 ifndef msg
 	$(error Usage: make migrate-new msg="describe the change")
 endif
-	docker compose exec api alembic revision --autogenerate -m "$(msg)"
+	alembic revision --autogenerate -m "$(msg)"
 
 migrate-down: _test-deps-up
-	docker compose exec api alembic downgrade -1
+	alembic downgrade -1
 
 migrate-history:
-	docker compose exec api alembic history --verbose
+	alembic history --verbose
 
 migrate-current:
-	docker compose exec api alembic current
+	alembic current
 
 # ── Dev utilities ─────────────────────────────────────────────────────────────
 
