@@ -63,6 +63,9 @@ RUN groupadd --gid 1001 kinesio \
 
 WORKDIR /app
 
+# Set PYTHONPATH so alembic and uvicorn can resolve `app.*` imports from /app
+ENV PYTHONPATH="/app"
+
 # Copy application source
 # alembic/ already contains alembic.ini — no separate copy needed
 COPY --chown=kinesio:kinesio app/           ./app/
