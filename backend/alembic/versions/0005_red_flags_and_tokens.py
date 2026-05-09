@@ -1,5 +1,8 @@
-"""
-Add red_flag_events and token_usage tables
+"""Add red_flag_events and token_usage tables
+
+Revision ID: 0005
+Revises: 0004
+Create Date: 2026-01-01 00:04:00.000000
 """
 
 from __future__ import annotations
@@ -20,23 +23,17 @@ def upgrade() -> None:
     # ── ENUM types ─────────────────────────────────────────────────────────────
 
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE red_flag_severity AS ENUM ('warn', 'stop', 'seek_care');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE red_flag_severity AS ENUM (''warn'', ''stop'', ''seek_care'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'red_flag_severity')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE red_flag_trigger AS ENUM ('pain_spike', 'rom_regression', 'compensation_pattern', 'bilateral_asymmetry', 'exercise_red_flag', 'clinician_manual');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE red_flag_trigger AS ENUM (''pain_spike'', ''rom_regression'', ''compensation_pattern'', ''bilateral_asymmetry'', ''exercise_red_flag'', ''clinician_manual'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'red_flag_trigger')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE ai_call_type AS ENUM ('initial_plan', 'adapt_plan', 'red_flag', 'feedback');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE ai_call_type AS ENUM (''initial_plan'', ''adapt_plan'', ''red_flag'', ''feedback'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ai_call_type')
+    """)
 
     # ── red_flag_events ────────────────────────────────────────────────────────
 
@@ -66,14 +63,13 @@ def upgrade() -> None:
     op.create_index("ix_red_flag_events_trigger_type","red_flag_events", ["trigger_type"])
 
     # ── token_usage ────────────────────────────────────────────────────────────
-    # Append-only cost tracking — no updated_at, integer PK for fast inserts.
 
     op.create_table(
         "token_usage",
         sa.Column("id",               sa.BigInteger(), primary_key=True, autoincrement=True),
         sa.Column("call_type",        sa.Enum("initial_plan","adapt_plan","red_flag","feedback", name="ai_call_type"), nullable=False),
         sa.Column("patient_id",       UUID(as_uuid=True), sa.ForeignKey("patient_profiles.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("session_id",       UUID(as_uuid=False), nullable=True),   # plain text — no FK to avoid locking
+        sa.Column("session_id",       UUID(as_uuid=False), nullable=True),
         sa.Column("model",            sa.String(128), nullable=False),
         sa.Column("input_tokens",     sa.Integer(), nullable=False),
         sa.Column("output_tokens",    sa.Integer(), nullable=False),

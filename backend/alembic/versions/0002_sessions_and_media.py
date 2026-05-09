@@ -23,29 +23,21 @@ def upgrade() -> None:
     # ── ENUM types ─────────────────────────────────────────────────────────────
 
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE session_status AS ENUM ('pending', 'in_progress', 'completed', 'abandoned');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE session_status AS ENUM (''pending'', ''in_progress'', ''completed'', ''abandoned'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'session_status')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE media_type AS ENUM ('intake', 'session_recording');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE media_type AS ENUM (''intake'', ''session_recording'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'media_type')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'done', 'failed');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE processing_status AS ENUM (''pending'', ''processing'', ''done'', ''failed'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'processing_status')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE feedback_severity AS ENUM ('info', 'warning', 'error', 'stop');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE feedback_severity AS ENUM (''info'', ''warning'', ''error'', ''stop'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'feedback_severity')
+    """)
 
     # ── exercise_sessions ──────────────────────────────────────────────────────
 
@@ -71,17 +63,17 @@ def upgrade() -> None:
         sa.Column("created_at",          sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at",          sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
     )
-    op.create_index("ix_exercise_sessions_patient_id",  "exercise_sessions", ["patient_id"])
-    op.create_index("ix_exercise_sessions_plan_id",     "exercise_sessions", ["plan_id"])
-    op.create_index("ix_exercise_sessions_status",      "exercise_sessions", ["status"])
-    op.create_index("ix_exercise_sessions_started_at",  "exercise_sessions", ["started_at"])
+    op.create_index("ix_exercise_sessions_patient_id", "exercise_sessions", ["patient_id"])
+    op.create_index("ix_exercise_sessions_plan_id",    "exercise_sessions", ["plan_id"])
+    op.create_index("ix_exercise_sessions_status",     "exercise_sessions", ["status"])
+    op.create_index("ix_exercise_sessions_started_at", "exercise_sessions", ["started_at"])
 
     # ── media_files ────────────────────────────────────────────────────────────
 
     op.create_table(
         "media_files",
         sa.Column("id",                UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("patient_id",        UUID(as_uuid=True), sa.ForeignKey("patient_profiles.id", ondelete="CASCADE"), nullable=False),
+        sa.Column("patient_id",        UUID(as_uuid=True), sa.ForeignKey("patient_profiles.id",  ondelete="CASCADE"), nullable=False),
         sa.Column("session_id",        UUID(as_uuid=True), sa.ForeignKey("exercise_sessions.id", ondelete="SET NULL"), nullable=True),
         sa.Column("s3_key",            sa.String(1024), nullable=False),
         sa.Column("s3_bucket",         sa.String(256),  nullable=False),

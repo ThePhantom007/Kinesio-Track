@@ -12,7 +12,6 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 from alembic import op
 
-# revision identifiers
 revision = "0001"
 down_revision = None
 branch_labels = None
@@ -24,35 +23,25 @@ def upgrade() -> None:
     # ── ENUM types ─────────────────────────────────────────────────────────────
 
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE user_role AS ENUM ('patient', 'clinician', 'admin');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE user_role AS ENUM (''patient'', ''clinician'', ''admin'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE activity_level AS ENUM ('sedentary', 'lightly_active', 'moderately_active', 'very_active');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE activity_level AS ENUM (''sedentary'', ''lightly_active'', ''moderately_active'', ''very_active'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'activity_level')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE injury_status AS ENUM ('active', 'resolved', 'on_hold');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE injury_status AS ENUM (''active'', ''resolved'', ''on_hold'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'injury_status')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE body_part AS ENUM ('ankle', 'knee', 'hip', 'lower_back', 'upper_back', 'shoulder', 'elbow', 'wrist', 'neck', 'other');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE body_part AS ENUM (''ankle'', ''knee'', ''hip'', ''lower_back'', ''upper_back'', ''shoulder'', ''elbow'', ''wrist'', ''neck'', ''other'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'body_part')
+    """)
     op.execute("""
-            DO $$ BEGIN
-                CREATE TYPE plan_status AS ENUM ('active', 'completed', 'paused', 'superseded');
-            EXCEPTION WHEN duplicate_object THEN NULL;
-            END $$;
-        """)
+        SELECT 'CREATE TYPE plan_status AS ENUM (''active'', ''completed'', ''paused'', ''superseded'')'
+        WHERE NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'plan_status')
+    """)
 
     # ── users ──────────────────────────────────────────────────────────────────
 
@@ -89,7 +78,6 @@ def upgrade() -> None:
     op.create_index("ix_clinician_profiles_license_number", "clinician_profiles", ["license_number"], unique=True)
 
     # ── patient_profiles ───────────────────────────────────────────────────────
-    # Note: active_plan_id FK is added after exercise_plans is created (below).
 
     op.create_table(
         "patient_profiles",
@@ -102,15 +90,15 @@ def upgrade() -> None:
         sa.Column("medical_notes",        sa.Text(), nullable=True),
         sa.Column("baseline_rom",         JSONB(), nullable=True),
         sa.Column("mobility_notes",       sa.Text(), nullable=True),
-        sa.Column("active_plan_id",       UUID(as_uuid=True), nullable=True),   # FK added below
+        sa.Column("active_plan_id",       UUID(as_uuid=True), nullable=True),
         sa.Column("assigned_clinician_id",UUID(as_uuid=True), sa.ForeignKey("clinician_profiles.id", ondelete="SET NULL"), nullable=True),
         sa.Column("fcm_token",            sa.String(512), nullable=True),
         sa.Column("web_push_subscription",JSONB(), nullable=True),
         sa.Column("created_at",           sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at",           sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
     )
-    op.create_index("ix_patient_profiles_user_id",              "patient_profiles", ["user_id"], unique=True)
-    op.create_index("ix_patient_profiles_assigned_clinician_id","patient_profiles", ["assigned_clinician_id"])
+    op.create_index("ix_patient_profiles_user_id",               "patient_profiles", ["user_id"], unique=True)
+    op.create_index("ix_patient_profiles_assigned_clinician_id", "patient_profiles", ["assigned_clinician_id"])
 
     # ── clinician_patients (M2M join) ──────────────────────────────────────────
 
@@ -171,7 +159,6 @@ def upgrade() -> None:
     op.create_index("ix_exercise_plans_injury_id",  "exercise_plans", ["injury_id"])
     op.create_index("ix_exercise_plans_status",     "exercise_plans", ["status"])
 
-    # Now add the deferred FK: patient_profiles.active_plan_id → exercise_plans
     op.create_foreign_key(
         "fk_patient_profiles_active_plan_id",
         "patient_profiles", "exercise_plans",
