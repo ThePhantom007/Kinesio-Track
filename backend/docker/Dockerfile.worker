@@ -19,7 +19,7 @@
 
 # ── Stage 1: dependency builder ───────────────────────────────────────────────
 
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -40,7 +40,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 LABEL maintainer="Kinesio-Track Team"
 LABEL description="Celery worker — Kinesio-Track remote physiotherapy platform"
@@ -61,6 +61,9 @@ RUN groupadd --gid 1001 kinesio \
  && useradd  --uid 1001 --gid kinesio --shell /bin/bash --create-home kinesio
 
 WORKDIR /app
+
+# Set PYTHONPATH so Celery can resolve `app.*` imports from /app
+ENV PYTHONPATH="/app"
 
 COPY --chown=kinesio:kinesio app/       ./app/
 COPY --chown=kinesio:kinesio mediapipe/ ./mediapipe/

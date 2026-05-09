@@ -12,7 +12,7 @@
 
 # ── Stage 1: dependency builder ───────────────────────────────────────────────
 
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 # System packages needed to build Python extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -38,7 +38,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 LABEL maintainer="Kinesio-Track Team"
 LABEL description="FastAPI API server — Kinesio-Track remote physiotherapy platform"
@@ -64,10 +64,10 @@ RUN groupadd --gid 1001 kinesio \
 WORKDIR /app
 
 # Copy application source
+# alembic/ already contains alembic.ini — no separate copy needed
 COPY --chown=kinesio:kinesio app/           ./app/
 COPY --chown=kinesio:kinesio mediapipe/     ./mediapipe/
 COPY --chown=kinesio:kinesio alembic/       ./alembic/
-COPY --chown=kinesio:kinesio alembic.ini    ./alembic.ini
 COPY --chown=kinesio:kinesio scripts/       ./scripts/
 
 # Create the models directory (populated by download_models.sh below)
@@ -90,9 +90,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
 
 # Validate environment before starting (exits 1 if a required var is missing)
 # Then run Alembic migrations and start Uvicorn.
+# alembic.ini lives inside alembic/ so pass -c to point at it explicitly.
 ENTRYPOINT ["sh", "-c", \
     "python scripts/check_env.py --no-ping && \
-     alembic upgrade head && \
+     alembic -c alembic/alembic.ini upgrade head && \
      uvicorn app.main:app \
        --host 0.0.0.0 \
        --port 8000 \

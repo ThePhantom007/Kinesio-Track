@@ -117,6 +117,10 @@ check: lint typecheck
 migrate: _test-deps-up
 	PYTHONPATH=. alembic -c alembic/alembic.ini upgrade head
 
+# Run migrations inside the running api container
+migrate-docker:
+	docker compose exec api alembic -c alembic/alembic.ini upgrade head
+
 migrate-new: _test-deps-up
 ifndef msg
 	$(error Usage: make migrate-new msg="describe the change")
