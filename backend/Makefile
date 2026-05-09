@@ -115,22 +115,22 @@ check: lint typecheck
 # ── Database migrations ───────────────────────────────────────────────────────
 
 migrate: _test-deps-up
-	alembic upgrade head
+	alembic -c alembic/alembic.ini upgrade head
 
 migrate-new: _test-deps-up
 ifndef msg
 	$(error Usage: make migrate-new msg="describe the change")
 endif
-	alembic revision --autogenerate -m "$(msg)"
+	alembic -c alembic/alembic.ini revision --autogenerate -m "$(msg)"
 
 migrate-down: _test-deps-up
-	alembic downgrade -1
+	alembic -c alembic/alembic.ini downgrade -1
 
 migrate-history:
-	alembic history --verbose
+	alembic -c alembic/alembic.ini history --verbose
 
 migrate-current:
-	alembic current
+	alembic -c alembic/alembic.ini current
 
 # ── Dev utilities ─────────────────────────────────────────────────────────────
 
