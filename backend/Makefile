@@ -132,6 +132,16 @@ migrate-history:
 migrate-current:
 	PYTHONPATH=. alembic -c alembic/alembic.ini current
 
+# ── Database Cleaning ─────────────────────────────────────────────────────────
+
+db-clean:
+	@echo "$(CYAN)Terminating connections and resetting database...$(RESET)"
+	docker compose exec postgres psql -U kt_user -d postgres -c \
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'kinesiotrack' AND pid <> pg_backend_pid();"
+	docker compose exec postgres psql -U kt_user -d postgres -c "DROP DATABASE IF EXISTS kinesiotrack;"
+	docker compose exec postgres psql -U kt_user -d postgres -c "CREATE DATABASE kinesiotrack;"
+	@echo "$(CYAN)Database reset. Run make migrate to reapply migrations.$(RESET)"
+
 # ── Dev utilities ─────────────────────────────────────────────────────────────
 
 seed: _test-deps-up

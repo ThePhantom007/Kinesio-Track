@@ -19,9 +19,24 @@ def upgrade() -> None:
 
     # ── ENUM types ─────────────────────────────────────────────────────────────
 
-    op.execute("CREATE TYPE red_flag_severity AS ENUM ('warn', 'stop', 'seek_care')")
-    op.execute("CREATE TYPE red_flag_trigger  AS ENUM ('pain_spike', 'rom_regression', 'compensation_pattern', 'bilateral_asymmetry', 'exercise_red_flag', 'clinician_manual')")
-    op.execute("CREATE TYPE ai_call_type      AS ENUM ('initial_plan', 'adapt_plan', 'red_flag', 'feedback')")
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE red_flag_severity AS ENUM ('warn', 'stop', 'seek_care');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE red_flag_trigger AS ENUM ('pain_spike', 'rom_regression', 'compensation_pattern', 'bilateral_asymmetry', 'exercise_red_flag', 'clinician_manual');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE ai_call_type AS ENUM ('initial_plan', 'adapt_plan', 'red_flag', 'feedback');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
 
     # ── red_flag_events ────────────────────────────────────────────────────────
 

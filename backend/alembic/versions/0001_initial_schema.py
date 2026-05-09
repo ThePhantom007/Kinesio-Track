@@ -23,11 +23,36 @@ def upgrade() -> None:
 
     # ── ENUM types ─────────────────────────────────────────────────────────────
 
-    op.execute("CREATE TYPE user_role AS ENUM ('patient', 'clinician', 'admin')")
-    op.execute("CREATE TYPE activity_level AS ENUM ('sedentary', 'lightly_active', 'moderately_active', 'very_active')")
-    op.execute("CREATE TYPE injury_status AS ENUM ('active', 'resolved', 'on_hold')")
-    op.execute("CREATE TYPE body_part AS ENUM ('ankle', 'knee', 'hip', 'lower_back', 'upper_back', 'shoulder', 'elbow', 'wrist', 'neck', 'other')")
-    op.execute("CREATE TYPE plan_status AS ENUM ('active', 'completed', 'paused', 'superseded')")
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE user_role AS ENUM ('patient', 'clinician', 'admin');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE activity_level AS ENUM ('sedentary', 'lightly_active', 'moderately_active', 'very_active');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE injury_status AS ENUM ('active', 'resolved', 'on_hold');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE body_part AS ENUM ('ankle', 'knee', 'hip', 'lower_back', 'upper_back', 'shoulder', 'elbow', 'wrist', 'neck', 'other');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE plan_status AS ENUM ('active', 'completed', 'paused', 'superseded');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
 
     # ── users ──────────────────────────────────────────────────────────────────
 

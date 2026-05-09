@@ -22,10 +22,30 @@ def upgrade() -> None:
 
     # ── ENUM types ─────────────────────────────────────────────────────────────
 
-    op.execute("CREATE TYPE session_status    AS ENUM ('pending', 'in_progress', 'completed', 'abandoned')")
-    op.execute("CREATE TYPE media_type        AS ENUM ('intake', 'session_recording')")
-    op.execute("CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'done', 'failed')")
-    op.execute("CREATE TYPE feedback_severity AS ENUM ('info', 'warning', 'error', 'stop')")
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE session_status AS ENUM ('pending', 'in_progress', 'completed', 'abandoned');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE media_type AS ENUM ('intake', 'session_recording');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE processing_status AS ENUM ('pending', 'processing', 'done', 'failed');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    op.execute("""
+            DO $$ BEGIN
+                CREATE TYPE feedback_severity AS ENUM ('info', 'warning', 'error', 'stop');
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
 
     # ── exercise_sessions ──────────────────────────────────────────────────────
 
