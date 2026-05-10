@@ -1,5 +1,5 @@
 """
-mediapipe/video_processor.py
+pose_engine/video_processor.py
 
 Frame-by-frame landmark extraction from pre-recorded video files.
 
@@ -42,9 +42,9 @@ import cv2
 from app.core.exceptions import VideoProcessingError
 from app.core.logging import get_logger
 
-# Intra-package imports — use the package name (mediapipe), not app.mediapipe
-from mediapipe.joint_angles import compute_all_joint_angles
-from mediapipe.pose_estimator import get_estimator
+# Intra-package imports — use the package name (pose_engine), not app.pose_engine
+from pose_engine.joint_angles import compute_all_joint_angles
+from pose_engine.pose_estimator import get_estimator
 
 log = get_logger(__name__)
 

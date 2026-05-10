@@ -9,7 +9,7 @@ prompt as context for Claude.
 Pipeline
 --------
   1. Download the video from S3 to a temporary local path.
-  2. Run mediapipe/video_processor.py frame-by-frame to extract landmarks.
+  2. Run pose_engine/video_processor.py frame-by-frame to extract landmarks.
   3. For each target joint, compute the peak range-of-motion angle across
      all frames (this captures the patient's maximum mobility at intake).
   4. Generate a plain-language mobility_notes summary.

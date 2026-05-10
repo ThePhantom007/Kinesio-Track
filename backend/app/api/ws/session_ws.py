@@ -64,7 +64,7 @@ from app.schemas.websocket import (
     ExerciseDoneMessage,
     SessionSummaryMessage,
 )
-from mediapipe import PoseEstimator
+from pose_engine import PoseEstimator
 
 router = APIRouter(tags=["websocket"])
 log = get_logger(__name__)

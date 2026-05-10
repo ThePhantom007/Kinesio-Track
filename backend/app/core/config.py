@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     S3_MAX_UPLOAD_BYTES: int = 500 * 1024 * 1024  # 500 MB
 
     # ── MediaPipe ─────────────────────────────────────────────────────────────
-    MEDIAPIPE_MODEL_PATH: str = "mediapipe/models/pose_landmarker.task"
+    MEDIAPIPE_MODEL_PATH: str = "pose_engine/models/pose_landmarker.task"
     # 0 = lite, 1 = full, 2 = heavy
     MEDIAPIPE_MODEL_COMPLEXITY: int = 1
     # Minimum landmark visibility score to trust a keypoint

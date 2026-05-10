@@ -38,7 +38,7 @@ htmlcov/
 dmypy.json
 
 # ── MediaPipe model weights (large binary — downloaded at build time) ─────────
-mediapipe/models/*.task
+pose_engine/models/*.task
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 # Local Docker volume data (if mounted as bind mounts)

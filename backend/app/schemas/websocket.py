@@ -26,7 +26,7 @@ Design notes
 - Android (MediaPipe Tasks on-device): sends LandmarkFrame with
   source="mediapipe_tasks" — landmarks are already extracted.
 - Web browser: sends LandmarkFrame with source="raw_frame" — server runs
-  MediaPipe server-side via mediapipe/pose_estimator.py.
+  MediaPipe server-side via pose_engine/pose_estimator.py.
 """
 
 from __future__ import annotations

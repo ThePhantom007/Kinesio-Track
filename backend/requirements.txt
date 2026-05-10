@@ -30,7 +30,7 @@ botocore
 # ── MediaPipe + Computer Vision ───────────────────────────────────────────────
 mediapipe
 opencv-python-headless           # headless — no GUI, safe in Docker
-numpy                            # pinned — mediapipe requires < 2.0
+numpy                            # pinned — pose_engine requires < 2.0
 
 # ── Data / Analytics ─────────────────────────────────────────────────────────
 scipy                            # linear regression for recovery forecaster

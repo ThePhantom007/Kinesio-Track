@@ -65,13 +65,13 @@ WORKDIR /app
 # Set PYTHONPATH so Celery can resolve `app.*` imports from /app
 ENV PYTHONPATH="/app"
 
-COPY --chown=kinesio:kinesio app/       ./app/
-COPY --chown=kinesio:kinesio mediapipe/ ./mediapipe/
-COPY --chown=kinesio:kinesio scripts/   ./scripts/
+COPY --chown=kinesio:kinesio app/           ./app/
+COPY --chown=kinesio:kinesio pose_engine/   ./pose_engine/
+COPY --chown=kinesio:kinesio scripts/       ./scripts/
 
 # MediaPipe model — workers need it for server-side pose estimation
-RUN mkdir -p mediapipe/models \
- && chown -R kinesio:kinesio mediapipe/models
+RUN mkdir -p pose_engine/models \
+ && chown -R kinesio:kinesio pose_engine/models
 RUN bash scripts/download_models.sh full
 
 USER kinesio

@@ -3,7 +3,7 @@ Pure geometry helpers for joint angle computation.
 
 No external dependencies — only the standard library.
 Can be imported safely from anywhere in the project, including from inside
-this package, without triggering the mediapipe naming-collision issue.
+this package, without triggering the pose_engine naming-collision issue.
 
 Coordinate system
 -----------------

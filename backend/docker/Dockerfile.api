@@ -69,13 +69,13 @@ ENV PYTHONPATH="/app"
 # Copy application source
 # alembic/ already contains alembic.ini — no separate copy needed
 COPY --chown=kinesio:kinesio app/           ./app/
-COPY --chown=kinesio:kinesio mediapipe/     ./mediapipe/
+COPY --chown=kinesio:kinesio pose_engine/   ./pose_engine/
 COPY --chown=kinesio:kinesio alembic/       ./alembic/
 COPY --chown=kinesio:kinesio scripts/       ./scripts/
 
 # Create the models directory (populated by download_models.sh below)
-RUN mkdir -p mediapipe/models \
- && chown -R kinesio:kinesio mediapipe/models
+RUN mkdir -p pose_engine/models \
+ && chown -R kinesio:kinesio pose_engine/models
 
 # Download MediaPipe model weights at build time.
 # The script is idempotent — safe to re-run.

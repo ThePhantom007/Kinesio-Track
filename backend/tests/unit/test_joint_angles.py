@@ -1,5 +1,5 @@
 """
-Unit tests for mediapipe/joint_angles.py.
+Unit tests for pose_engine/joint_angles.py.
 
 All tests are pure Python — no DB, no network, no MediaPipe library.
 Angles are verified against known triangle geometries using trigonometry.
@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from mediapipe.joint_angles import (
+from pose_engine.joint_angles import (
     JOINT_TRIPLETS,
     bilateral_asymmetry,
     compute_all_joint_angles,

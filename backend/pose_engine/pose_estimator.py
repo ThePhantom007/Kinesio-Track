@@ -26,7 +26,7 @@ on first use.
 The model file is downloaded at Docker build time by scripts/download_models.sh
 and is NOT committed to the repository (listed in .gitignore).
 
-Model path: mediapipe/models/pose_landmarker.task
+Model path: pose_engine/models/pose_landmarker.task
 Model:      Full variant — 33 landmarks, the best accuracy.
 Complexity: Controlled by MEDIAPIPE_MODEL_COMPLEXITY in settings (0/1/2).
 """
@@ -39,9 +39,9 @@ import sys
 import cv2
 import numpy as np
 
-# ── PyPI mediapipe import — bypass our local mediapipe/ package ───────────────
+# ── PyPI pose_engine import — bypass our local pose_engine/ package ───────────────
 #
-# Remove the project root from sys.path so Python resolves 'import mediapipe'
+# Remove the project root from sys.path so Python resolves 'import pose_engine'
 # to the site-packages installation, not this directory.
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,7 +52,7 @@ if _PROJECT_ROOT in sys.path:
     _removed = True
 
 try:
-    import mediapipe as _mp_lib          # PyPI mediapipe
+    import pose_engine as _mp_lib          # PyPI pose_engine
 finally:
     if _removed and _PROJECT_ROOT not in sys.path:
         sys.path.insert(0, _PROJECT_ROOT)   # always restore
@@ -73,7 +73,7 @@ log = get_logger(__name__)
 
 class PoseEstimator:
     """
-    Wraps ``mediapipe.solutions.pose.Pose`` for per-frame landmark extraction.
+    Wraps ``pose_engine.solutions.pose.Pose`` for per-frame landmark extraction.
 
     Thread safety: MediaPipe Pose is not thread-safe across threads.
     Create one instance per thread / per Celery worker process.

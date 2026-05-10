@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/download_models.sh
 #
-# Downloads the MediaPipe PoseLandmarker model weights into mediapipe/models/.
+# Downloads the MediaPipe PoseLandmarker model weights into pose_engine/models/.
 # Run automatically during Docker build (see docker/Dockerfile.api).
 # Safe to run manually — idempotent, skips download if the file already exists.
 #
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 VARIANT="${1:-full}"
-MODELS_DIR="$(dirname "$(dirname "$(realpath "$0")")")/mediapipe/models"
+MODELS_DIR="$(dirname "$(dirname "$(realpath "$0")")")/pose_engine/models"
 MODEL_FILE="${MODELS_DIR}/pose_landmarker.task"
 
 # Google CDN base URL for MediaPipe models
