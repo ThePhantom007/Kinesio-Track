@@ -43,6 +43,7 @@ passlib[bcrypt]                  # password hashing
 # ── Validation / Settings ─────────────────────────────────────────────────────
 pydantic
 pydantic-settings
+pydantic[email]
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 structlog
