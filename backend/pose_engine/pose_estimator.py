@@ -12,7 +12,18 @@ from mediapipe.tasks.python import vision as mp_vision
 from app.core.config import settings
 from app.core.logging import get_logger
 
+_estimator : PoseEstimator
 log = get_logger(__name__)
+
+def get_estimator() -> PoseEstimator:
+    """
+    Return the shared PoseEstimator singleton.
+    Creates it on first call, reuses on subsequent calls.
+    """
+    global _estimator
+    if _estimator is None:
+        _estimator = PoseEstimator()
+    return _estimator
 
 class PoseEstimator:
     """

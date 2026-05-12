@@ -533,19 +533,23 @@ async def _extract_landmarks_from_frame(raw_b64: str) -> list[dict]:
         Server-side MediaPipe landmark extraction for web browser clients.
         Runs in a thread pool to avoid blocking the event loop.
         """
-    import asyncio, cv2
+    import asyncio
     import base64
+    import cv2
     import numpy as np
-    loop = asyncio.get_event_loop()
-    def _run():
+    from pose_engine.pose_estimator import get_estimator
+
+    def _run_sync():
         try:
             img_bytes = base64.b64decode(raw_b64)
-            img_array = np.frombuffer(img_bytes, dtype=np.uint8)
-            frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            arr = np.frombuffer(img_bytes, dtype=np.uint8)
+            frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
             if frame is None:
                 return []
-            return _web_estimator.estimate(frame)
+            return get_estimator().estimate(frame)
         except Exception as exc:
             log.warning("server_side_mediapipe_failed", error=str(exc))
             return []
-    return await loop.run_in_executor(None, _run)
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _run_sync)
