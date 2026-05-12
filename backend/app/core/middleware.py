@@ -112,21 +112,31 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         bind_request_context(request_id=request_id)
 
         start = time.perf_counter()
+        response = None
         try:
             response = await call_next(request)
+            return response
+        except Exception as exc:
+            log.error(
+                "http_request_failed",
+                method=request.method,
+                path=request.url.path,
+                error=str(exc),
+                duration_ms=round((time.perf_counter() - start) * 1000, 2),
+            )
+            raise
         finally:
             elapsed_ms = (time.perf_counter() - start) * 1000
             log.info(
                 "http_request",
                 method=request.method,
                 path=request.url.path,
-                status_code=getattr(response, "status_code", 0),
+                status_code=getattr(response, "status_code", 0) if response else 500,
                 duration_ms=round(elapsed_ms, 2),
             )
             clear_request_context()
-
-        response.headers["X-Request-ID"] = request_id
-        return response
+            if response is not None:
+                response.headers["X-Request-ID"] = request_id
 
 
 # ═════════════════════════════════════════════════════════════════════════════
