@@ -14,14 +14,14 @@
 #   full  (~10 MB) — 33 landmarks, best accuracy for physiotherapy.  DEFAULT.
 #   lite  (~3 MB)  — faster, slightly lower accuracy.
 #   heavy (~25 MB) — highest accuracy, slowest.
-#
-# Model complexity setting (MEDIAPIPE_MODEL_COMPLEXITY in .env):
-#   0 = lite, 1 = full, 2 = heavy
 
 set -euo pipefail
 
 VARIANT="${1:-full}"
-MODELS_DIR="$(dirname "$(dirname "$(realpath "$0")")")/pose_engine/models"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+MODELS_DIR="${PROJECT_ROOT}/pose_engine/models"
 MODEL_FILE="${MODELS_DIR}/pose_landmarker.task"
 
 # Google CDN base URL for MediaPipe models
@@ -42,6 +42,9 @@ case "$VARIANT" in
     exit 1
     ;;
 esac
+
+echo "→ Project root: ${PROJECT_ROOT}"
+echo "→ Models dir:   ${MODELS_DIR}"
 
 mkdir -p "$MODELS_DIR"
 

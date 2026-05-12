@@ -138,6 +138,7 @@ class VideoProcessingError(KinesioBaseError):
 
 class VideoDownloadError(VideoProcessingError):
     """Failed to retrieve the video from S3."""
+    http_status = 502
     error_code = "video_download_error"
 
 

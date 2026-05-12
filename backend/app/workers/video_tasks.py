@@ -36,7 +36,7 @@ log = get_task_logger(__name__)
 
 def _run(coro):
     """Run an async coroutine from a synchronous Celery task."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)   # asyncio.run() is correct for Python 3.12+
 
 
 # ── process_intake_video ──────────────────────────────────────────────────────
@@ -60,11 +60,6 @@ def process_intake_video(self: Task, media_id: str) -> dict:
       3. If an Injury row is associated, write mobility_notes to it.
       4. Update MediaFile.processing_status → DONE or FAILED.
       5. Send patient push notification on completion.
-      6. If a plan already exists for this injury, trigger plan regeneration
-         with the new baseline ROM context (rare edge case).
-
-    Returns:
-        {"media_id": str, "status": "done"|"failed", "joints_measured": int}
     """
     log.info("process_intake_video_started", media_id=media_id)
 
@@ -75,9 +70,9 @@ def process_intake_video(self: Task, media_id: str) -> dict:
         from app.models.injury import Injury
         from app.models.media import MediaFile, ProcessingStatus
         from app.models.patient import PatientProfile
-        from app.services.video_intake_analyzer import VideoIntakeAnalyzerService
-        from app.services.notification import NotificationService
         from app.models.user import User
+        from app.services.notification import NotificationService
+        from app.services.video_intake_analyzer import VideoIntakeAnalyzerService
 
         async with get_db_context() as db:
             # Load media file
@@ -116,7 +111,6 @@ def process_intake_video(self: Task, media_id: str) -> dict:
             joints_measured = len(result_data.get("baseline_rom", {}))
 
             # Notify patient
-            user = await db.get(User, patient.user_id)
             notif = NotificationService()
             await notif.send_to_patient(
                 patient=patient,
@@ -134,8 +128,8 @@ def process_intake_video(self: Task, media_id: str) -> dict:
                 joints_measured=joints_measured,
             )
             return {
-                "media_id":       media_id,
-                "status":         "done",
+                "media_id":        media_id,
+                "status":          "done",
                 "joints_measured": joints_measured,
             }
 
@@ -166,16 +160,18 @@ def process_session_recording(self: Task, media_id: str) -> dict:
     log.info("process_session_recording_started", media_id=media_id)
 
     async def _run_async():
+        import os
+        import tempfile
+        from datetime import datetime, timezone
         from sqlalchemy import select
 
         from app.db.postgres import get_db_context
-        from app.db.timescale import write_metric_batch
         from app.db.s3 import download_video
+        from app.db.timescale import write_metric_batch
         from app.models.media import MediaFile, ProcessingStatus
         from app.models.session import ExerciseSession
-        from app.mediapipe.video_processor import process_video_file
-        from app.services.pose_analyzer import PoseAnalyzerService
-        import tempfile, os
+        # Corrected import — process_video_file lives in video_processor module
+        from pose_engine.video_processor import process_video_file
 
         async with get_db_context() as db:
             result = await db.execute(
@@ -189,7 +185,7 @@ def process_session_recording(self: Task, media_id: str) -> dict:
             if session is None:
                 return {"media_id": media_id, "status": "skipped"}
 
-        # Download video to temp file
+        # Download video to temp file outside the DB context
         suffix = "." + media_file.s3_key.split(".")[-1]
         tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
         tmp.close()
@@ -201,8 +197,8 @@ def process_session_recording(self: Task, media_id: str) -> dict:
                 dest_path=tmp.name,
             )
 
-            # Extract landmarks
-            frame_landmarks = process_video_file(tmp.name)
+            # Extract landmarks — process_video_file is a sync generator
+            frame_landmarks = list(process_video_file(tmp.name))
 
             if not frame_landmarks:
                 return {"media_id": media_id, "status": "no_landmarks"}
@@ -210,25 +206,25 @@ def process_session_recording(self: Task, media_id: str) -> dict:
             # Write raw metrics to TimescaleDB
             rows = []
             for frame in frame_landmarks:
-                for lm_id, angle in frame.get("joint_angles", {}).items():
+                for joint, angle in frame.get("joint_angles", {}).items():
                     rows.append({
-                        "session_id":  str(session.id),
-                        "exercise_id": str(session.exercise_id) if session.exercise_id else None,
-                        "joint":       lm_id,
-                        "angle_deg":   angle,
+                        "session_id":    str(session.id),
+                        "exercise_id":   str(session.exercise_id) if session.exercise_id else None,
+                        "joint":         joint,
+                        "angle_deg":     angle,
                         "quality_score": None,
                     })
 
-            await write_metric_batch(rows)
+            if rows:
+                await write_metric_batch(rows)
 
-            # Mark media as done
+            # Mark media as done in a fresh DB context
             async with get_db_context() as db:
-                from datetime import datetime, timezone
                 mf = await db.get(MediaFile, UUID(media_id))
                 if mf:
                     mf.processing_status = ProcessingStatus.DONE
-                    mf.processed_at = datetime.now(timezone.utc)
-                    mf.duration_seconds = len(frame_landmarks) // 30
+                    mf.processed_at      = datetime.now(timezone.utc)
+                    mf.duration_seconds  = len(frame_landmarks) // 30
                     db.add(mf)
 
             log.info(
@@ -237,7 +233,11 @@ def process_session_recording(self: Task, media_id: str) -> dict:
                 frames=len(frame_landmarks),
                 metric_rows=len(rows),
             )
-            return {"media_id": media_id, "status": "done", "frames": len(frame_landmarks)}
+            return {
+                "media_id": media_id,
+                "status":   "done",
+                "frames":   len(frame_landmarks),
+            }
 
         finally:
             if os.path.exists(tmp.name):

@@ -69,7 +69,7 @@ def configure_logging() -> None:
         _add_service_name,
         _drop_color_message,
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
+        structlog.processors.ExceptionRenderer(),
     ]
 
     if settings.is_production:

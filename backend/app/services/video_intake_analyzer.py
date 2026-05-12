@@ -31,15 +31,14 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import VideoDownloadError, VideoProcessingError
 from app.core.logging import get_logger
 from app.db.s3 import download_video
-from app.mediapipe.video_processor import process_video_file
-from app.mediapipe.joint_angles import compute_angle
+from pose_engine.video_processor import process_video_file
+from pose_engine.joint_angles import compute_angle
 from app.models.media import MediaFile, ProcessingStatus
 from app.models.injury import Injury
 from app.models.patient import PatientProfile
