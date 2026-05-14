@@ -21,9 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.claude_client import ClaudeClient
 from app.ai.prompt_templates.adapt_plan import AdaptationContext
 from app.core.config import settings
-from app.core.exceptions import PlanAdaptationError
 from app.core.logging import get_logger
-from app.db.queries.analytics import last_n_session_metrics, quality_trend_slope
+from app.db.queries.analytics import last_n_session_metrics
 from app.models.plan import ExercisePlan, PlanStatus
 from app.models.phase import PlanPhase
 from app.models.exercise import Exercise
@@ -94,9 +93,9 @@ class PlanAdapterService:
             avg_pain_score=avg_pain,
             completion_rate=avg_completion,
             sessions_analysed=len(metrics),
-            age=patient.age if patient else None,
-            activity_level=patient.activity_level.value if patient and patient.activity_level else None,
-            mobility_notes=patient.mobility_notes if patient else None,
+            age=str(patient.age if patient else None),
+            activity_level=str(patient.activity_level) if patient and patient.activity_level else None,
+            mobility_notes=str(patient.mobility_notes) if patient else None,
         )
 
         patch_ops = await self._claude.adapt_plan(ctx, db, patient_id=session.patient_id)

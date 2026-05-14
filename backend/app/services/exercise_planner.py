@@ -109,10 +109,10 @@ class ExercisePlannerService:
         """Map ORM objects → IntakeContext dataclass for the prompt builder."""
         return IntakeContext(
             injury_description=injury.description,
-            body_part=injury.body_part.value,
+            body_part=str(injury.body_part),
             pain_score=injury.pain_score,
             age=patient.age,
-            activity_level=patient.activity_level.value if patient.activity_level else None,
+            activity_level=str(patient.activity_level) if patient.activity_level else None,
             mobility_notes=injury.mobility_notes or patient.mobility_notes,
             baseline_rom=patient.baseline_rom,
             contraindications=[],   # populated from medical_notes by clinician post-intake

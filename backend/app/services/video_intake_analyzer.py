@@ -230,7 +230,7 @@ class VideoIntakeAnalyzerService:
 
         if injury:
             lines.append(
-                f"\nPrimary affected area: {injury.body_part.value.replace('_', ' ')}. "
+                f"\nPrimary affected area: {str(injury.body_part).replace('_', ' ')}. "
                 f"Reported pain: {injury.pain_score}/10."
             )
         return "\n".join(lines)

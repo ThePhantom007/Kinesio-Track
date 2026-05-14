@@ -115,7 +115,7 @@ async def get_current_patient(current_user: CurrentUser) -> User:
     if current_user.role != UserRole.PATIENT:
         raise PermissionDeniedError(
             "This endpoint requires a patient account.",
-            detail={"required_role": "patient", "actual_role": current_user.role.value},
+            detail={"required_role": "patient", "actual_role": str(current_user.role)},
         )
     return current_user
 
@@ -125,7 +125,7 @@ async def get_current_clinician(current_user: CurrentUser) -> User:
     if current_user.role != UserRole.CLINICIAN:
         raise PermissionDeniedError(
             "This endpoint requires a clinician account.",
-            detail={"required_role": "clinician", "actual_role": current_user.role.value},
+            detail={"required_role": "clinician", "actual_role": str(current_user.role)},
         )
     return current_user
 
@@ -135,7 +135,7 @@ async def get_current_admin(current_user: CurrentUser) -> User:
     if current_user.role != UserRole.ADMIN:
         raise PermissionDeniedError(
             "This endpoint requires an admin account.",
-            detail={"required_role": "admin", "actual_role": current_user.role.value},
+            detail={"required_role": "admin", "actual_role": str(current_user.role)},
         )
     return current_user
 

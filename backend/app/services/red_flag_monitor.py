@@ -216,7 +216,7 @@ class RedFlagMonitorService:
         """
         log.warning(
             "red_flag_triggered",
-            trigger=ctx.trigger_type.value,
+            trigger=str(ctx.trigger_type),
             session_id=str(session.id),
             patient_id=str(ctx.patient_age),   # age only — no PII in logs
             exercise=ctx.exercise_slug,
@@ -273,15 +273,15 @@ class RedFlagMonitorService:
         previous_avg_pain: float | None = None,
     ) -> RedFlagContext:
         return RedFlagContext(
-            trigger_type=trigger_type.value,
+            trigger_type=str(trigger_type),
             trigger_context=trigger_context,
             exercise_name=exercise_name,
             exercise_slug=exercise_slug,
             current_pain_score=current_pain_score,
             previous_avg_pain=previous_avg_pain,
             age=patient.age,
-            activity_level=patient.activity_level.value if patient.activity_level else None,
-            body_part=injury.body_part.value if injury else "unknown",
+            activity_level=str(patient.activity_level) if patient.activity_level else None,
+            body_part=str(injury.body_part) if injury else "unknown",
             session_reps_completed=session.total_reps_completed or 0,
             session_quality_score=session.avg_quality_score,
             escalation_criteria=plan.escalation_criteria or [] if plan else [],

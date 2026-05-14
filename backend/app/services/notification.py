@@ -68,15 +68,15 @@ class NotificationService:
             log.warning(
                 "red_flag_no_clinician",
                 event_id=str(event.id),
-                severity=event.severity.value,
+                severity=str(event.severity),
             )
             return
 
         severity_emoji = {"warn": "⚠️", "stop": "🛑", "seek_care": "🚨"}.get(
-            event.severity.value, "⚠️"
+            str(event.severity), "⚠️"
         )
         subject = (
-            f"{severity_emoji} Kinesio-Track Red Flag: {event.trigger_type.value.replace('_', ' ').title()} "
+            f"{severity_emoji} Kinesio-Track Red Flag: {str(event.trigger_type).replace('_', ' ').title()} "
             f"— {patient_name or 'Patient'}"
         )
         body = self._format_red_flag_body(event, patient_name)
@@ -88,8 +88,8 @@ class NotificationService:
                 payload={
                     "event_type":     "red_flag",
                     "event_id":       str(event.id),
-                    "severity":       event.severity.value,
-                    "trigger_type":   event.trigger_type.value,
+                    "severity":       str(event.severity),
+                    "trigger_type":   str(event.trigger_type),
                     "immediate_action": event.immediate_action,
                     "clinician_note": event.clinician_note,
                     "patient_name":   patient_name,
@@ -338,11 +338,11 @@ class NotificationService:
     @staticmethod
     def _format_red_flag_body(event: RedFlagEvent, patient_name: str | None) -> str:
         name = patient_name or "Your patient"
-        severity_label = event.severity.value.replace("_", " ").upper()
+        severity_label = str(event.severity).replace("_", " ").upper()
         return (
             f"RED FLAG ALERT — {severity_label}\n"
             f"Patient: {name}\n"
-            f"Trigger: {event.trigger_type.value.replace('_', ' ').title()}\n\n"
+            f"Trigger: {str(event.trigger_type).replace('_', ' ').title()}\n\n"
             f"Patient message sent:\n{event.immediate_action}\n\n"
             f"Clinical note:\n{event.clinician_note}\n\n"
             f"Session recommendation: {event.session_recommendation or 'N/A'}\n\n"

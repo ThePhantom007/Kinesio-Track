@@ -329,9 +329,9 @@ async def session_websocket(
                     rf_msg = RedFlagMessage(
                         session_id=session_id,
                         timestamp_ms=_now_ms(),
-                        severity=rf_event.severity.value,
+                        severity=rf_event.severity,
                         message=rf_event.immediate_action,
-                        trigger_type=rf_event.trigger_type.value,
+                        trigger_type=str(rf_event.trigger_type),
                         red_flag_id=rf_event.id,
                     )
                     await connection_manager.send_to_patient(session_id, rf_msg.model_dump())

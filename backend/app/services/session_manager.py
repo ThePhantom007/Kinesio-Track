@@ -489,6 +489,6 @@ class SessionManagerService:
             raise SessionNotFoundError(f"Session {session_id} not found.")
         if session.status not in (SessionStatus.PENDING, SessionStatus.IN_PROGRESS):
             raise SessionNotActiveError(
-                f"Session {session_id} is {session.status.value}, not active."
+                f"Session {session_id} is {str(session.status)}, not active."
             )
         return session
