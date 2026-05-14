@@ -23,7 +23,7 @@ from app.core.security import (
 )
 from app.db.redis import is_token_revoked, revoke_token
 from app.models.patient import PatientProfile
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
@@ -89,7 +89,7 @@ async def register(
         )
         db.add(profile)
 
-    access_token = create_access_token(str(user.id), user.role.value)
+    access_token = create_access_token(str(user.id), str(user.role))
     refresh_token, jti = create_refresh_token(str(user.id))
 
     return AuthResponse(
@@ -131,7 +131,7 @@ async def login(
     if not verify_password(body.password, user.hashed_password):
         raise _invalid
 
-    access_token = create_access_token(str(user.id), user.role.value)
+    access_token = create_access_token(str(user.id), str(user.role))
     refresh_token, _ = create_refresh_token(str(user.id))
 
     return AuthResponse(
@@ -185,7 +185,7 @@ async def refresh(
         await revoke_token(jti)
 
     # Issue new pair
-    new_access  = create_access_token(str(user.id), user.role.value)
+    new_access = create_access_token(str(user.id), str(user.role))
     new_refresh, _ = create_refresh_token(str(user.id))
 
     return TokenResponse(
