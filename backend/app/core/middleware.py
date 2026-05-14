@@ -43,7 +43,8 @@ log = get_logger(__name__)
 
 # Public routes that bypass JWT auth entirely.
 _PUBLIC_PREFIXES: tuple[str, ...] = (
-    "/api/v1/auth/",
+    "/api/v1/auth/register",
+    "/api/v1/auth/login",
     "/health",
     "/docs",
     "/redoc",
