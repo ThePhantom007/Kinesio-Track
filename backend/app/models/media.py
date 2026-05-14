@@ -85,7 +85,7 @@ class MediaFile(BaseModel):
 
     # ── Metadata ───────────────────────────────────────────────────────────────
     media_type: Mapped[MediaType] = mapped_column(
-        Enum(MediaType, name="media_type"),
+        Enum(MediaType, name="media_type", native_enum=False),
         nullable=False,
         index=True,
     )
@@ -103,7 +103,7 @@ class MediaFile(BaseModel):
 
     # ── Processing ─────────────────────────────────────────────────────────────
     processing_status: Mapped[ProcessingStatus] = mapped_column(
-        Enum(ProcessingStatus, name="processing_status"),
+        Enum(ProcessingStatus, name="processing_status", native_enum=False),
         nullable=False,
         default=ProcessingStatus.PENDING,
         index=True,

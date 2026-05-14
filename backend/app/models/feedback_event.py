@@ -79,7 +79,7 @@ class FeedbackEvent(Base):
 
     # ── Classification ─────────────────────────────────────────────────────────
     severity: Mapped[FeedbackSeverity] = mapped_column(
-        Enum(FeedbackSeverity, name="feedback_severity"),
+        Enum(FeedbackSeverity, name="feedback_severity", native_enum=False),
         nullable=False,
         index=True,
     )

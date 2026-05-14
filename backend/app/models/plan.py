@@ -67,7 +67,7 @@ class ExercisePlan(BaseModel):
     # ── Plan metadata ──────────────────────────────────────────────────────────
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     status: Mapped[PlanStatus] = mapped_column(
-        Enum(PlanStatus, name="plan_status"),
+        Enum(PlanStatus, name="plan_status", native_enum=False),
         nullable=False,
         default=PlanStatus.ACTIVE,
         index=True,

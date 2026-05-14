@@ -72,7 +72,7 @@ class RedFlagEvent(BaseModel):
 
     # ── Trigger ────────────────────────────────────────────────────────────────
     trigger_type: Mapped[RedFlagTrigger] = mapped_column(
-        Enum(RedFlagTrigger, name="red_flag_trigger"),
+        Enum(RedFlagTrigger, name="red_flag_trigger", native_enum=False),
         nullable=False,
         index=True,
     )
@@ -88,7 +88,7 @@ class RedFlagEvent(BaseModel):
 
     # ── Claude output ──────────────────────────────────────────────────────────
     severity: Mapped[RedFlagSeverity] = mapped_column(
-        Enum(RedFlagSeverity, name="red_flag_severity"),
+        Enum(RedFlagSeverity, name="red_flag_severity", native_enum=False),
         nullable=False,
         index=True,
     )

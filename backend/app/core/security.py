@@ -11,24 +11,27 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import JWTError, jwt, ExpiredSignatureError
-from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.core.exceptions import AuthenticationError, TokenExpiredError
 
 # ── Password hashing ──────────────────────────────────────────────────────────
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+import bcrypt
 
 def hash_password(plain: str) -> str:
-    """Return bcrypt hash of *plain*."""
-    return _pwd_context.hash(plain)
-
+    """Return bcrypt hash of plain password."""
+    return bcrypt.hashpw(
+        plain.encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Return True if *plain* matches *hashed*."""
-    return _pwd_context.verify(plain, hashed)
+    """Return True if plain matches hashed."""
+    return bcrypt.checkpw(
+        plain.encode("utf-8"),
+        hashed.encode("utf-8"),
+    )
 
 
 # ── Token creation ────────────────────────────────────────────────────────────

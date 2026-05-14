@@ -57,7 +57,7 @@ class Injury(BaseModel):
         comment="Free-text description entered by the patient at intake.",
     )
     body_part: Mapped[BodyPart] = mapped_column(
-        Enum(BodyPart, name="body_part"),
+        Enum(BodyPart, name="body_part", native_enum=False),
         nullable=False,
         index=True,
     )
@@ -67,7 +67,7 @@ class Injury(BaseModel):
         comment="Self-reported pain intensity 1–10 at time of intake.",
     )
     status: Mapped[InjuryStatus] = mapped_column(
-        Enum(InjuryStatus, name="injury_status"),
+        Enum(InjuryStatus, name="injury_status", native_enum=False),
         nullable=False,
         default=InjuryStatus.ACTIVE,
         index=True,

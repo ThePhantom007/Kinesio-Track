@@ -67,7 +67,7 @@ class ExerciseSession(BaseModel):
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
     status: Mapped[SessionStatus] = mapped_column(
-        Enum(SessionStatus, name="session_status"),
+        Enum(SessionStatus, name="session_status", native_enum=False),
         nullable=False,
         default=SessionStatus.PENDING,
         index=True,

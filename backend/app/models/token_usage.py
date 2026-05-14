@@ -14,10 +14,9 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -42,7 +41,7 @@ class TokenUsage(Base):
 
     # ── Context ────────────────────────────────────────────────────────────────
     call_type: Mapped[AICallType] = mapped_column(
-        Enum(AICallType, name="ai_call_type"),
+        Enum(AICallType, name="ai_call_type", native_enum=False),
         nullable=False,
         index=True,
     )

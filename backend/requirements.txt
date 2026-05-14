@@ -38,7 +38,7 @@ jsonpatch                        # RFC 6902 JSON Patch for plan adaptation
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 python-jose[cryptography]        # JWT encode/decode
-passlib[bcrypt]                  # password hashing
+bcrypt==4.0.1
 
 # ── Validation / Settings ─────────────────────────────────────────────────────
 pydantic

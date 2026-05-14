@@ -40,7 +40,7 @@ class User(BaseModel):
         comment="bcrypt hash — never store plain text.",
     )
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role"),
+        Enum(UserRole, name="user_role", native_enum=False),
         nullable=False,
         default=UserRole.PATIENT,
         index=True,
