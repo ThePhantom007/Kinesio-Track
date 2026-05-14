@@ -26,11 +26,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.patient import PatientProfile
@@ -72,7 +72,7 @@ class RedFlagEvent(BaseModel):
 
     # ── Trigger ────────────────────────────────────────────────────────────────
     trigger_type: Mapped[RedFlagTrigger] = mapped_column(
-        Enum(RedFlagTrigger, name="red_flag_trigger", native_enum=False),
+        sa_enum(RedFlagTrigger, name="red_flag_trigger"),
         nullable=False,
         index=True,
     )
@@ -88,7 +88,7 @@ class RedFlagEvent(BaseModel):
 
     # ── Claude output ──────────────────────────────────────────────────────────
     severity: Mapped[RedFlagSeverity] = mapped_column(
-        Enum(RedFlagSeverity, name="red_flag_severity", native_enum=False),
+        sa_enum(RedFlagSeverity, name="red_flag_severity"),
         nullable=False,
         index=True,
     )

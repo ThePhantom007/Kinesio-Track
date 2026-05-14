@@ -13,11 +13,11 @@ import enum
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.injury import Injury
@@ -67,7 +67,7 @@ class ExercisePlan(BaseModel):
     # ── Plan metadata ──────────────────────────────────────────────────────────
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     status: Mapped[PlanStatus] = mapped_column(
-        Enum(PlanStatus, name="plan_status", native_enum=False),
+        sa_enum(PlanStatus, name="plan_status"),
         nullable=False,
         default=PlanStatus.ACTIVE,
         index=True,

@@ -24,11 +24,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.patient import PatientProfile
@@ -85,7 +85,7 @@ class MediaFile(BaseModel):
 
     # ── Metadata ───────────────────────────────────────────────────────────────
     media_type: Mapped[MediaType] = mapped_column(
-        Enum(MediaType, name="media_type", native_enum=False),
+        sa_enum(MediaType, name="media_type"),
         nullable=False,
         index=True,
     )
@@ -103,7 +103,7 @@ class MediaFile(BaseModel):
 
     # ── Processing ─────────────────────────────────────────────────────────────
     processing_status: Mapped[ProcessingStatus] = mapped_column(
-        Enum(ProcessingStatus, name="processing_status", native_enum=False),
+        sa_enum(ProcessingStatus, name="processing_status"),
         nullable=False,
         default=ProcessingStatus.PENDING,
         index=True,

@@ -10,11 +10,11 @@ import enum
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, Enum, ForeignKey, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.clinician import ClinicianProfile
@@ -51,7 +51,7 @@ class PatientProfile(BaseModel):
         comment="Geographic region tag for accessibility analytics.",
     )
     activity_level: Mapped[ActivityLevel | None] = mapped_column(
-        Enum(ActivityLevel, name="activity_level", native_enum=False),
+        sa_enum(ActivityLevel, "activity_level"),
         nullable=True,
     )
     medical_notes: Mapped[str | None] = mapped_column(

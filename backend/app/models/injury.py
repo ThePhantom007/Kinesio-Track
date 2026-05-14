@@ -10,11 +10,11 @@ import enum
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.patient import PatientProfile
@@ -57,7 +57,7 @@ class Injury(BaseModel):
         comment="Free-text description entered by the patient at intake.",
     )
     body_part: Mapped[BodyPart] = mapped_column(
-        Enum(BodyPart, name="body_part", native_enum=False),
+        sa_enum(BodyPart, name="body_part"),
         nullable=False,
         index=True,
     )
@@ -67,7 +67,7 @@ class Injury(BaseModel):
         comment="Self-reported pain intensity 1–10 at time of intake.",
     )
     status: Mapped[InjuryStatus] = mapped_column(
-        Enum(InjuryStatus, name="injury_status", native_enum=False),
+        sa_enum(InjuryStatus, name="injury_status"),
         nullable=False,
         default=InjuryStatus.ACTIVE,
         index=True,

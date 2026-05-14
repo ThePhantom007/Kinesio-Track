@@ -73,7 +73,7 @@ async def register(
     await db.flush()   # get user.id
 
     # Create patient profile for patient accounts
-    if user.role == UserRole.PATIENT:
+    if user.role == "patient":
         from datetime import date as date_type
         dob = None
         if body.date_of_birth:

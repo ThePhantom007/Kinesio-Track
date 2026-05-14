@@ -11,6 +11,15 @@ from sqlalchemy import DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from sqlalchemy import Enum as SAEnum
+
+def sa_enum(enum_class, name: str) -> SAEnum:
+    """Create a SQLAlchemy Enum that uses .value not .name for PostgreSQL."""
+    return SAEnum(
+        enum_class,
+        name=name,
+        values_callable=lambda obj: [e.value for e in obj],
+    )
 
 class Base(DeclarativeBase):
     """Root declarative base — all models inherit from this."""

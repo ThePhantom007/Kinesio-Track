@@ -17,13 +17,13 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.exercise import Exercise
@@ -67,7 +67,7 @@ class ExerciseSession(BaseModel):
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
     status: Mapped[SessionStatus] = mapped_column(
-        Enum(SessionStatus, name="session_status", native_enum=False),
+        sa_enum(SessionStatus, name="session_status"),
         nullable=False,
         default=SessionStatus.PENDING,
         index=True,

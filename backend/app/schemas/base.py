@@ -49,6 +49,8 @@ class AppResponseModel(AppBaseModel):
             return v.replace(tzinfo=timezone.utc)
         return v
 
+    model_config = ConfigDict(use_enum_values=True, from_attributes=True)
+
 
 # ── Reusable annotated types ───────────────────────────────────────────────────
 

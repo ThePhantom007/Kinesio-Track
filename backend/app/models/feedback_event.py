@@ -21,11 +21,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
+from app.models.base import Base, sa_enum
 
 if TYPE_CHECKING:
     from app.models.exercise import Exercise
@@ -79,7 +79,7 @@ class FeedbackEvent(Base):
 
     # ── Classification ─────────────────────────────────────────────────────────
     severity: Mapped[FeedbackSeverity] = mapped_column(
-        Enum(FeedbackSeverity, name="feedback_severity", native_enum=False),
+        sa_enum(FeedbackSeverity, name="feedback_severity"),
         nullable=False,
         index=True,
     )

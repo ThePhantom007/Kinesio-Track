@@ -8,10 +8,10 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Enum, String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
+from app.models.base import BaseModel, sa_enum
 
 if TYPE_CHECKING:
     from app.models.clinician import ClinicianProfile
@@ -40,7 +40,7 @@ class User(BaseModel):
         comment="bcrypt hash — never store plain text.",
     )
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role", native_enum=False),
+        sa_enum(UserRole, "user_role"),
         nullable=False,
         default=UserRole.PATIENT,
         index=True,
