@@ -129,7 +129,7 @@ class ClaudeClient:
                     raw, usage = await self._call(
                         system=ADAPT_PLAN_SYSTEM_PROMPT,
                         user=user_prompt,
-                        max_tokens=512,
+                        max_tokens=20480,
                     )
                 patch = validate_plan_patch(raw)
                 await self._cost_tracker.record(

@@ -50,6 +50,7 @@ def _parse_json(raw: str, call_type: str) -> Any:
     so the caller always catches the same exception type.
     """
     cleaned = _strip_fences(raw)
+    log.info("gemini_raw_response", call_type=call_type, preview=raw[:500])
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError as exc:
