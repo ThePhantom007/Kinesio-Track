@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 REQUIRED_VARS: list[tuple[str, str]] = [
     ("DATABASE_URL",          "PostgreSQL connection string"),
     ("REDIS_URL",             "Redis connection URL"),
-    ("ANTHROPIC_API_KEY",     "Anthropic Claude API key"),
+    ("GEMINI_API_KEY",        "Google Gemini API key"),
     ("AWS_ACCESS_KEY_ID",     "AWS / MinIO access key"),
     ("AWS_SECRET_ACCESS_KEY", "AWS / MinIO secret key"),
     ("S3_BUCKET_NAME",        "S3 bucket for video storage"),
@@ -66,9 +66,6 @@ def check_vars() -> list[str]:
         ):
             errors.append(f"  INVALID  {var}  (must start with 'postgresql')")
 
-        if var == "ANTHROPIC_API_KEY" and not val.startswith("sk-ant-"):
-            errors.append(f"  INVALID  {var}  (expected 'sk-ant-...' format)")
-
     return errors
 
 
@@ -101,9 +98,7 @@ async def ping_redis() -> str | None:
 
 async def ping_s3() -> str | None:
     try:
-        import asyncio
         import boto3
-        from botocore.exceptions import ClientError, NoCredentialsError
 
         def _head():
             client = boto3.client(
@@ -123,22 +118,25 @@ async def ping_s3() -> str | None:
         return f"S3 unreachable or bucket missing: {exc}"
 
 
-async def ping_anthropic() -> str | None:
+async def ping_gemini() -> str | None:
     try:
-        import anthropic
-        client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
-        # Cheapest possible call to verify the key is valid
-        await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1,
-            messages=[{"role": "user", "content": "hi"}],
+        from google import genai
+        from google.genai import types as genai_types
+
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", ""))
+
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: client.models.generate_content(
+                model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+                contents="hi",
+                config=genai_types.GenerateContentConfig(max_output_tokens=1),
+            ),
         )
-        await client.close()
         return None
-    except anthropic.AuthenticationError:
-        return "Anthropic API key is invalid or expired"
     except Exception as exc:
-        return f"Anthropic API unreachable: {exc}"
+        return f"Gemini API unreachable or key invalid: {exc}"
 
 
 # ── Runner ────────────────────────────────────────────────────────────────────
@@ -174,10 +172,10 @@ async def main(no_ping: bool) -> int:
     ping_results: dict[str, str | None] = {}
 
     tasks = {
-        "PostgreSQL":  ping_postgres(),
-        "Redis":       ping_redis(),
-        "S3":          ping_s3(),
-        "Anthropic":   ping_anthropic(),
+        "PostgreSQL": ping_postgres(),
+        "Redis":      ping_redis(),
+        "S3":         ping_s3(),
+        "Gemini":     ping_gemini(),
     }
 
     for name, coro in tasks.items():
