@@ -51,16 +51,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # ── Anthropic ─────────────────────────────────────────────────────────────
-    ANTHROPIC_API_KEY: str
-    ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
+    # ── Gemini ─────────────────────────────────────────────────────────────
+    GEMINI_API_KEY: str
+    GEMINI_MODEL: str = "gemini-2.5-flash-preview-05-20"
     # Max attempts including the first call
-    ANTHROPIC_MAX_RETRIES: int = 3
-    ANTHROPIC_TIMEOUT_SECONDS: float = 60.0
+    GEMINI_MAX_RETRIES: int = 3
+    GEMINI_TIMEOUT_SECONDS: float = 60.0
     # Hard cap on tokens for the short real-time feedback prompt
-    ANTHROPIC_FEEDBACK_MAX_TOKENS: int = 80
+    GEMINI_FEEDBACK_MAX_TOKENS: int = 80
     # Max tokens for full plan generation
-    ANTHROPIC_PLAN_MAX_TOKENS: int = 4_096
+    GEMINI_PLAN_MAX_TOKENS: int = 4_096
     # Monthly budget (USD) — alerts are sent when this is exceeded
     MONTHLY_TOKEN_BUDGET_USD: float = 100.0
 

@@ -16,8 +16,8 @@ psycopg2-binary                  # Alembic env.py sync driver (migrations only)
 # ── Redis ─────────────────────────────────────────────────────────────────────
 redis                            # includes redis.asyncio
 
-# ── AI / Anthropic ────────────────────────────────────────────────────────────
-anthropic
+# ── AI / Gemini ────────────────────────────────────────────────────────────
+google-genai
 
 # ── Task queue ────────────────────────────────────────────────────────────────
 celery

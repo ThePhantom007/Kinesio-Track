@@ -1,24 +1,6 @@
 """
-Async Anthropic SDK wrapper.  Single entry point for all Claude API calls.
-
-Public interface
-----------------
-  generate_initial_plan(ctx, db, patient_id)   → ExercisePlanAIOutput
-  adapt_plan(ctx, db, patient_id)              → list[dict]  (JSON Patch)
-  escalate_red_flag(ctx, db, patient_id)       → dict
-  generate_feedback(ctx, db, session_id)       → str
-
-Design decisions
-----------------
-- Each method has its own token budget, system prompt, and retry behaviour.
-- Retries are validation-aware: on PlanValidationError the corrective prompt
-  (from response_parser.build_correction_prompt) replaces the user turn so
-  Claude sees exactly which fields are wrong.
-- The cost_tracker records usage after every successful final response
-  (not per retry attempt).
-- All methods are fully async — never block the event loop.
-- The client is instantiated once at app startup and shared via the FastAPI
-  app state (app.state.claude_client).
+Google Gemini SDK wrapper — drop-in replacement for the Anthropic ClaudeClient.
+Public interface is identical so all services work without changes.
 """
 
 from __future__ import annotations
@@ -27,7 +9,8 @@ import asyncio
 from typing import Any
 from uuid import UUID
 
-import anthropic
+from google import genai
+from google.genai import types as genai_types
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.cost_tracker import CostTracker, timer
@@ -71,35 +54,19 @@ from app.schemas.plan import ExercisePlanAIOutput
 
 log = get_logger(__name__)
 
-# ── Retry config per call type ────────────────────────────────────────────────
-
-_RETRY_DELAYS = [1.0, 3.0, 7.0]   # seconds between attempts (exponential-ish)
+_RETRY_DELAYS = [1.0, 3.0, 7.0]
 
 
 class ClaudeClient:
     """
-    Async wrapper around the Anthropic SDK.
-
-    Instantiate once and share via app.state::
-
-        app.state.claude_client = ClaudeClient()
-
-    Each public method acquires its own HTTP connection from the SDK's
-    internal connection pool.
+    Gemini wrapper with identical public interface to the original ClaudeClient.
+    Named ClaudeClient to avoid changing all imports across the codebase.
     """
 
     def __init__(self) -> None:
-        self._client = anthropic.AsyncAnthropic(
-            api_key=settings.ANTHROPIC_API_KEY,
-            timeout=settings.ANTHROPIC_TIMEOUT_SECONDS,
-            max_retries=0,   # We manage retries ourselves for validation awareness
-        )
+        self._client = genai.Client(api_key=settings.GEMINI_API_KEY)
         self._cost_tracker = CostTracker()
-        log.info("claude_client_initialised", model=settings.ANTHROPIC_MODEL)
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # 1. Initial plan generation
-    # ═════════════════════════════════════════════════════════════════════════
+        log.info("gemini_client_initialised", model=settings.GEMINI_MODEL)
 
     async def generate_initial_plan(
         self,
@@ -107,70 +74,45 @@ class ClaudeClient:
         db: AsyncSession,
         patient_id: UUID | None = None,
     ) -> ExercisePlanAIOutput:
-        """
-        Generate a full physiotherapy exercise plan from an IntakeContext.
-
-        Retries up to ANTHROPIC_MAX_RETRIES times on PlanValidationError,
-        passing the field-level diff back to Claude each time.
-
-        Returns:
-            Validated ExercisePlanAIOutput.
-
-        Raises:
-            PlanGenerationError: All retry attempts exhausted.
-        """
         user_prompt = build_initial_plan_prompt(ctx)
         last_error: Exception | None = None
 
-        for attempt in range(settings.ANTHROPIC_MAX_RETRIES):
+        for attempt in range(settings.GEMINI_MAX_RETRIES):
             try:
                 with timer() as t:
-                    raw, usage, model = await self._call(
+                    raw, usage = await self._call(
                         system=INITIAL_PLAN_SYSTEM_PROMPT,
                         user=user_prompt,
-                        max_tokens=settings.ANTHROPIC_PLAN_MAX_TOKENS,
+                        max_tokens=settings.GEMINI_PLAN_MAX_TOKENS,
                     )
-
                 plan = validate_initial_plan(raw)
-
                 await self._cost_tracker.record(
                     db,
                     call_type=AICallType.INITIAL_PLAN,
-                    model=model,
-                    input_tokens=usage.input_tokens,
-                    output_tokens=usage.output_tokens,
+                    model=settings.GEMINI_MODEL,
+                    input_tokens=usage.get("input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0),
                     patient_id=patient_id,
                     retry_count=attempt,
                     latency_ms=t.elapsed_ms,
                 )
                 return plan
-
             except PlanValidationError as exc:
                 last_error = exc
-                log.warning(
-                    "initial_plan_validation_failed",
-                    attempt=attempt + 1,
-                    max_attempts=settings.ANTHROPIC_MAX_RETRIES,
-                    error=str(exc),
-                )
-                if attempt < settings.ANTHROPIC_MAX_RETRIES - 1:
+                log.warning("initial_plan_validation_failed", attempt=attempt + 1, error=str(exc))
+                if attempt < settings.GEMINI_MAX_RETRIES - 1:
                     user_prompt = build_correction_prompt(user_prompt, exc)
                     await asyncio.sleep(_RETRY_DELAYS[min(attempt, len(_RETRY_DELAYS) - 1)])
-
-            except anthropic.APIError as exc:
+            except Exception as exc:
                 last_error = exc
-                log.error("anthropic_api_error", attempt=attempt + 1, error=str(exc))
-                if attempt < settings.ANTHROPIC_MAX_RETRIES - 1:
+                log.error("gemini_api_error", attempt=attempt + 1, error=str(exc))
+                if attempt < settings.GEMINI_MAX_RETRIES - 1:
                     await asyncio.sleep(_RETRY_DELAYS[min(attempt, len(_RETRY_DELAYS) - 1)])
 
         raise PlanGenerationError(
-            f"Failed to generate a valid exercise plan after {settings.ANTHROPIC_MAX_RETRIES} attempts.",
+            f"Failed to generate a valid exercise plan after {settings.GEMINI_MAX_RETRIES} attempts.",
             detail={"last_error": str(last_error)},
         )
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # 2. Plan adaptation
-    # ═════════════════════════════════════════════════════════════════════════
 
     async def adapt_plan(
         self,
@@ -178,63 +120,43 @@ class ClaudeClient:
         db: AsyncSession,
         patient_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
-        """
-        Produce an RFC 6902 JSON Patch array for post-session plan adaptation.
-
-        Returns:
-            List of patch operations (maybe empty if no adaptation needed).
-
-        Raises:
-            PlanAdaptationError: All retry attempts exhausted.
-        """
         user_prompt = build_adapt_prompt(ctx)
         last_error: Exception | None = None
 
-        for attempt in range(settings.ANTHROPIC_MAX_RETRIES):
+        for attempt in range(settings.GEMINI_MAX_RETRIES):
             try:
                 with timer() as t:
-                    raw, usage, model = await self._call(
+                    raw, usage = await self._call(
                         system=ADAPT_PLAN_SYSTEM_PROMPT,
                         user=user_prompt,
                         max_tokens=512,
                     )
-
                 patch = validate_plan_patch(raw)
-
                 await self._cost_tracker.record(
                     db,
                     call_type=AICallType.ADAPT_PLAN,
-                    model=model,
-                    input_tokens=usage.input_tokens,
-                    output_tokens=usage.output_tokens,
+                    model=settings.GEMINI_MODEL,
+                    input_tokens=usage.get("input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0),
                     patient_id=patient_id,
                     retry_count=attempt,
                     latency_ms=t.elapsed_ms,
                 )
-                log.info("plan_adapted", op_count=len(patch), attempt=attempt + 1)
                 return patch
-
             except PlanValidationError as exc:
                 last_error = exc
-                log.warning("adapt_plan_validation_failed", attempt=attempt + 1, error=str(exc))
-                if attempt < settings.ANTHROPIC_MAX_RETRIES - 1:
+                if attempt < settings.GEMINI_MAX_RETRIES - 1:
                     user_prompt = build_correction_prompt(user_prompt, exc)
                     await asyncio.sleep(_RETRY_DELAYS[min(attempt, len(_RETRY_DELAYS) - 1)])
-
-            except anthropic.APIError as exc:
+            except Exception as exc:
                 last_error = exc
-                log.error("anthropic_api_error", call="adapt_plan", attempt=attempt + 1, error=str(exc))
-                if attempt < settings.ANTHROPIC_MAX_RETRIES - 1:
+                if attempt < settings.GEMINI_MAX_RETRIES - 1:
                     await asyncio.sleep(_RETRY_DELAYS[min(attempt, len(_RETRY_DELAYS) - 1)])
 
         raise PlanAdaptationError(
-            f"Failed to produce a valid plan patch after {settings.ANTHROPIC_MAX_RETRIES} attempts.",
+            f"Failed to produce a valid plan patch after {settings.GEMINI_MAX_RETRIES} attempts.",
             detail={"last_error": str(last_error)},
         )
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # 3. Red-flag escalation
-    # ═════════════════════════════════════════════════════════════════════════
 
     async def escalate_red_flag(
         self,
@@ -242,42 +164,27 @@ class ClaudeClient:
         db: AsyncSession,
         patient_id: UUID | None = None,
     ) -> dict[str, Any]:
-        """
-        Generate an escalation response for a detected red-flag condition.
-
-        This call is time-sensitive (patient is mid-session); it does NOT
-        retry on validation failure — instead it falls back to a safe default
-        response to avoid delaying the patient-facing message.
-
-        Returns:
-            Dict with keys: severity, immediate_action, clinician_note,
-            session_recommendation.
-        """
         user_prompt = build_red_flag_prompt(ctx)
-
         try:
             with timer() as t:
-                raw, usage, model = await self._call(
+                raw, usage = await self._call(
                     system=RED_FLAG_SYSTEM_PROMPT,
                     user=user_prompt,
                     max_tokens=300,
                 )
             response = validate_red_flag_response(raw)
-
             await self._cost_tracker.record(
                 db,
                 call_type=AICallType.RED_FLAG,
-                model=model,
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
+                model=settings.GEMINI_MODEL,
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
                 patient_id=patient_id,
                 latency_ms=t.elapsed_ms,
             )
             return response
-
-        except (PlanValidationError, anthropic.APIError) as exc:
-            log.error("red_flag_escalation_failed", error=str(exc), trigger=ctx.trigger_type)
-            # Safe fallback — always tell the patient to stop and rest.
+        except Exception as exc:
+            log.error("red_flag_escalation_failed", error=str(exc))
             return {
                 "severity": "stop",
                 "immediate_action": (
@@ -286,14 +193,10 @@ class ClaudeClient:
                 ),
                 "clinician_note": (
                     f"Automated red-flag escalation failed ({exc}). "
-                    f"Manual review required. Trigger: {ctx.trigger_type}."
+                    "Manual review required."
                 ),
                 "session_recommendation": "stop_session",
             }
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # 4. Real-time feedback
-    # ═════════════════════════════════════════════════════════════════════════
 
     async def generate_feedback(
         self,
@@ -301,52 +204,30 @@ class ClaudeClient:
         db: AsyncSession,
         session_id: UUID | None = None,
     ) -> str:
-        """
-        Generate a single correction message for a real-time form violation.
-
-        Optimised for minimum latency (max_tokens=80).  Does NOT retry —
-        the feedback_generator service has already checked the Redis cache;
-        if Claude fails here, the caller falls back to a generic message.
-
-        Returns:
-            Validated correction sentence (≤ 20 words).
-
-        Raises:
-            FeedbackGenerationError: API error (not validation — validation
-            failures fall back to a generic message via validate_feedback_message).
-        """
         user_prompt = build_feedback_prompt(ctx)
-
         try:
             with timer() as t:
-                raw, usage, model = await self._call(
+                raw, usage = await self._call(
                     system=FEEDBACK_SYSTEM_PROMPT,
                     user=user_prompt,
-                    max_tokens=settings.ANTHROPIC_FEEDBACK_MAX_TOKENS,
+                    max_tokens=settings.GEMINI_FEEDBACK_MAX_TOKENS,
                 )
-
             message = validate_feedback_message(raw)
-
             await self._cost_tracker.record(
                 db,
                 call_type=AICallType.FEEDBACK,
-                model=model,
-                input_tokens=usage.input_tokens,
-                output_tokens=usage.output_tokens,
+                model=settings.GEMINI_MODEL,
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
                 session_id=session_id,
                 latency_ms=t.elapsed_ms,
             )
             return message
-
-        except anthropic.APIError as exc:
-            log.error("feedback_generation_failed", error=str(exc), exercise=ctx.exercise_slug)
+        except Exception as exc:
+            log.error("feedback_generation_failed", error=str(exc))
             raise FeedbackGenerationError(
-                f"Claude API error during feedback generation: {exc}",
+                f"Gemini API error during feedback generation: {exc}",
             ) from exc
-
-    # ═════════════════════════════════════════════════════════════════════════
-    # Internal helpers
-    # ═════════════════════════════════════════════════════════════════════════
 
     async def _call(
         self,
@@ -354,26 +235,36 @@ class ClaudeClient:
         system: str,
         user: str,
         max_tokens: int,
-    ) -> tuple[str, anthropic.types.Usage, anthropic.types.Model]:
+    ) -> tuple[str, dict]:
         """
-        Execute one Anthropic messages.create call.
-        Returns:
-            (response_text, usage_object, model_object) tuple.
-        Raises:
-            anthropic.APIError on any HTTP or SDK-level failure.
+        Execute one Gemini generate_content call asynchronously.
+        Returns (response_text, usage_dict).
         """
-        response = await self._client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-        text = "".join(
-            block.text for block in response.content if block.type == "text"
-        )
-        return text, response.usage, response.model
+        loop = asyncio.get_running_loop()
+
+        def _sync_call():
+            return self._client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=user,
+                config=genai_types.GenerateContentConfig(
+                    system_instruction=system,
+                    max_output_tokens=max_tokens,
+                    temperature=0.3,
+                    thinking_config=genai_types.ThinkingConfig(
+                        thinking_budget=0,  # disable thinking for faster responses
+                    ),
+                ),
+            )
+
+        response = await loop.run_in_executor(None, _sync_call)
+
+        text = response.text or ""
+        usage = {
+            "input_tokens":  getattr(response.usage_metadata, "prompt_token_count", 0),
+            "output_tokens": getattr(response.usage_metadata, "candidates_token_count", 0),
+        }
+        return text, usage
 
     async def close(self) -> None:
-        """Close the underlying HTTP client.  Call during app shutdown."""
-        await self._client.close()
-        log.info("claude_client_closed")
+        """No-op — Gemini client has no persistent connection to close."""
+        log.info("gemini_client_closed")
