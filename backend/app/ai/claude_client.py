@@ -258,9 +258,20 @@ class ClaudeClient:
 
         response = await loop.run_in_executor(None, _sync_call)
 
+        if response.candidates:
+            finish_reason = response.candidates[0].finish_reason
+            log.info("gemini_finish_reason", reason=str(finish_reason))
+
+        log.info(
+            "gemini_usage",
+            input_tokens=getattr(response.usage_metadata, "prompt_token_count", 0),
+            output_tokens=getattr(response.usage_metadata, "candidates_token_count", 0),
+            max_tokens=max_tokens,
+        )
+
         text = response.text or ""
         usage = {
-            "input_tokens":  getattr(response.usage_metadata, "prompt_token_count", 0),
+            "input_tokens": getattr(response.usage_metadata, "prompt_token_count", 0),
             "output_tokens": getattr(response.usage_metadata, "candidates_token_count", 0),
         }
         return text, usage
