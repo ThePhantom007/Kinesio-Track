@@ -161,7 +161,7 @@ def _register_middleware(app: FastAPI) -> None:
     # CORS — innermost, applied after auth
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if settings.is_development else [
+        allow_origins=["*", "https://overfeed-rumbling-barn.ngrok-free.dev/"] if settings.is_development else [
             "https://app.kinesiotrack.com",
             "https://www.kinesiotrack.com",
         ],
