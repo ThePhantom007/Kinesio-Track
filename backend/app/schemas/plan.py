@@ -29,8 +29,8 @@ class JointRule(AppBaseModel):
     Consumed by pose_analyzer on every frame.
     """
 
-    min_angle: float = Field(..., ge=0, le=360, description="Minimum acceptable joint angle in degrees.")
-    max_angle: float = Field(..., ge=0, le=360, description="Maximum acceptable joint angle in degrees.")
+    min_angle: float = Field(..., le=360, description="Minimum acceptable joint angle in degrees.")
+    max_angle: float = Field(..., le=360, description="Maximum acceptable joint angle in degrees.")
     axis: str = Field(
         "sagittal",
         description="Movement plane: sagittal | frontal | transverse.",

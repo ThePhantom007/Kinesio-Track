@@ -1,22 +1,17 @@
 """Initial schema — users, patients, clinicians, injuries, exercise_plans, plan_phases, exercises
-
 Revision ID: 0001
-Revises:
-Create Date: 2026-01-01 00:00:00.000000
 """
 
 from __future__ import annotations
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-
 from alembic import op
 
 revision = "0001"
 down_revision = None
 branch_labels = None
 depends_on = None
-
 
 def upgrade() -> None:
 

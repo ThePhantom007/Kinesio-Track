@@ -101,6 +101,12 @@ INITIAL_PLAN_SYSTEM_PROMPT = dedent("""
         }
       ]
     }
+    
+    LANDMARK RULES CONSTRAINTS
+    ──────────────────────────
+    - min_angle and max_angle must both be >= 0 (use 0 as minimum if range starts below 0)
+    - All angles are in degrees, measured as positive values only
+    - Typical ranges: ankle 0-30, knee 0-90, hip 0-45, shoulder 0-90, elbow 0-90, wrist 0-60
 
     CLINICAL RULES
     ──────────────

@@ -245,11 +245,8 @@ def build_correction_prompt(original_prompt: str, validation_error: PlanValidati
     """
     diff = validation_error.detail.get("diff", str(validation_error)) if validation_error.detail else str(validation_error)
     return (
-        f"{original_prompt}\n\n"
-        "CORRECTION REQUIRED\n"
-        "───────────────────\n"
-        "Your previous response failed schema validation.  "
-        "Fix the following issues and return the corrected JSON:\n\n"
+        "The previous JSON response had validation errors. "
+        "Return ONLY a corrected JSON object fixing these issues:\n\n"
         f"{diff}\n\n"
-        "Return ONLY the corrected JSON object with no other text."
+        "Return ONLY valid JSON with no other text."
     )
